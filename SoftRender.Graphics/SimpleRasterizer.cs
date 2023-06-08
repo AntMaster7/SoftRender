@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace SoftRender
 {
-    public unsafe class RasterizerSlow
+    public unsafe class SimpleRasterizer : IRasterizer
     {
         private const byte BytesPerPixel = 3;
 
@@ -12,7 +12,7 @@ namespace SoftRender
         private readonly byte* framebuffer;
         private readonly int stride;
 
-        public RasterizerSlow(byte* framebuffer, int stride)
+        public SimpleRasterizer(byte* framebuffer, int stride)
         {
             this.framebuffer = framebuffer;
             this.stride = stride;

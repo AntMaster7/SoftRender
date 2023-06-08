@@ -11,16 +11,16 @@ namespace SoftRender.Benchmark
         private const int Width = 1024;
 
         private readonly Random rnd = new Random();
-        private readonly Rasterizer fastRasterizer;
-        private readonly RasterizerSlow slowRasterizer;
+        private readonly FastRasterizer fastRasterizer;
+        private readonly SimpleRasterizer slowRasterizer;
         private readonly byte* framebuffer;
 
         public RasterizerBenchmark()
         {
             framebuffer = (byte*)Marshal.AllocHGlobal(Width * Height * 3);
 
-            fastRasterizer = new Rasterizer(framebuffer, Width * 3);
-            slowRasterizer = new RasterizerSlow(framebuffer, Width * 3);
+            fastRasterizer = new FastRasterizer(framebuffer, Width * 3);
+            slowRasterizer = new SimpleRasterizer(framebuffer, Width * 3);
         }
 
         public void Dispose()

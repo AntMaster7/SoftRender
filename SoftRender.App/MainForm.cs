@@ -10,7 +10,7 @@ namespace SoftRender.App
         private Bitmap bitmap;
         private Point p1, p2;
         private Vector2D pr;
-        private NearestSampler sampler;
+        private ISampler sampler;
 
         private Vector2D[] tri = new Vector2D[]
         {
@@ -23,7 +23,7 @@ namespace SoftRender.App
         {
             InitializeComponent();
 
-            var texture = LoadTexture("brickwall-512x512.jpg");
+            sampler = LoadTexture("brickwall-512x512.jpg");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
@@ -63,22 +63,22 @@ namespace SoftRender.App
             polygon[1] = viewportTransform * tri[1];
             polygon[2] = viewportTransform * tri[2];
 
-            var rasterizer = new Rasterizer(ctx.Scan0, ctx.Stride);
-            var slowRaster = new RasterizerSlow(ctx.Scan0, ctx.Stride);
+            var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
+            var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
 
             var sw = new Stopwatch();
             sw.Start();
 
             for (int i = 0; i < 100; i++)
             {
-                rasterizer.Rasterize(polygon);
-                // slowRaster.Rasterize(polygon);
+                fastRasterizer.Rasterize(polygon);
+                // simpleRasterizer.Rasterize(polygon);
             }
 
             sw.Stop();
 
-            Console.WriteLine(rasterizer.Dummy);
-            Console.WriteLine(slowRaster.Dummy);
+            Console.WriteLine(fastRasterizer.Dummy);
+            Console.WriteLine(simpleRasterizer.Dummy);
             Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds + "ms");
 
 
