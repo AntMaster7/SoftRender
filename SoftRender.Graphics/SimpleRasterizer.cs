@@ -22,12 +22,8 @@ namespace SoftRender
 
         public unsafe void DrawTexture(ISampler texture, Rectangle screen)
         {
-            var s = (NearestSampler)texture;
-            var h = screen.Height;
             var w = screen.Width;
-
-            var sh = s.h;
-            var sw = s.w;
+            var h = screen.Height;
 
             for (int y = 0; y < h; y++)
             {
@@ -36,22 +32,9 @@ namespace SoftRender
                     var u = (float)x / w;
                     var v = (float)y / h;
 
-
-                    // inline
-                    var tx = (int)(u * sh);
-                    var ty = (int)(v * sw);
-
-                    var textureOffset = ty * s.stride + tx * BytesPerPixel;
-                    // end inline
-
                     int offset = y * stride + x * BytesPerPixel;
 
-                    texture.Sample(u, v, (framebuffer + offset + 0), (framebuffer + offset + 1), (framebuffer + offset + 2)); // new ColorRGB(255, 0, 0); // 
-
-
-                    //*(framebuffer + offset + 0) = s.texture[textureOffset + 0];
-                    //*(framebuffer + offset + 1) = s.texture[textureOffset + 1];
-                    //*(framebuffer + offset + 2) = s.texture[textureOffset + 2];
+                    texture.Sample(u, v, framebuffer + offset + 0);
                 }
             }
         }
@@ -84,6 +67,8 @@ namespace SoftRender
             int j = e2x + (e2y * aabb.Width);
             int k = e3x + (e3y * aabb.Width);
 
+            var sampler = (NearestSampler)texture;
+
             for (y = aabb.Y; y < aabb.Y + aabb.Height - 1; y++)
             {
                 for (x = aabb.X; x < aabb.X + aabb.Width; x++)
@@ -113,7 +98,7 @@ namespace SoftRender
                         //*(framebuffer + offset + 1) = (byte)(attribs[0].G * b1pc + attribs[1].G * b2pc + attribs[2].G * b3pc);
                         //*(framebuffer + offset + 0) = (byte)(attribs[0].B * b1pc + attribs[1].B * b2pc + attribs[2].B * b3pc);
 
-                        texture.Sample(u, v, framebuffer + offset + 0, framebuffer + offset + 1, framebuffer + offset + 2);
+                        sampler.Sample(u, v, framebuffer + offset);
                     }
 
                     f1 -= e1y;

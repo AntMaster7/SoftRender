@@ -114,6 +114,8 @@ namespace SoftRender
             float[] gs = new float[8];
             float[] bs = new float[8];
 
+            var sampler = (NearestSampler)texture;
+
             for (y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
                 //p.Ys = Vector256.Create(y);
@@ -148,16 +150,7 @@ namespace SoftRender
                         var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
                         var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
 
-                        texture.Sample(us, vs, rs, gs, bs);
-
-                        fixed (float* prs = rs)
-                        fixed (float* pgs = gs)
-                        fixed (float* pbs = bs)
-                        {
-                            pixel.Rs = Avx.ConvertToVector256Int32(Avx.LoadVector256(prs));
-                            pixel.Gs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pgs));
-                            pixel.Bs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pbs));
-                        }
+                        sampler.SamplePacket(us, vs, pixel);
 
                         var offset = y * stride + x * BytesPerPixel;
                         pixel.StoreInterleaved(framebuffer + offset, mask);
