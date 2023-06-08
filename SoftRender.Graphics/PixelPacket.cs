@@ -25,10 +25,10 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void StoreInterleaved(byte* rgb, Vector256<float> mask)
         {
-            var bbrr = Avx.Shuffle(Bs.AsSingle(), Rs.AsSingle(), 0b01111000); // B0 B2 R3 R1 | B4 B6 R7 R5
-            var ggrr = Avx.Shuffle(Gs.AsSingle(), Rs.AsSingle(), 0b10000010); // G2 G0 R0 R2 | G6 G4 R4 R6
+            var bbrr = Avx.Shuffle(Rs.AsSingle(), Bs.AsSingle(), 0b01111000); // B0 B2 R3 R1 | B4 B6 R7 R5
+            var ggrr = Avx.Shuffle(Gs.AsSingle(), Bs.AsSingle(), 0b10000010); // G2 G0 R0 R2 | G6 G4 R4 R6
             var rgbr = Avx.Shuffle(ggrr, bbrr, 0b11000110);                   // R0 G0 B0 R1 | R4 G4 B4 R5
-            var ggbb = Avx.Shuffle(Gs.AsSingle(), Bs.AsSingle(), 0b11011101); // G1 G3 B1 B3 | G5 G7 B5 B7
+            var ggbb = Avx.Shuffle(Gs.AsSingle(), Rs.AsSingle(), 0b11011101); // G1 G3 B1 B3 | G5 G7 B5 B7
             var gbrg = Avx.Shuffle(ggbb, ggrr, 0b00111000);                   // G1 B1 R2 G2 | G5 B5 R6 G6
             var brgb = Avx.Shuffle(bbrr, ggbb, 0b11011001);                   // B2 R3 G3 B3 | B6 R7 G7 B7
 

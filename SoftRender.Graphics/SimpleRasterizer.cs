@@ -20,7 +20,43 @@ namespace SoftRender
             this.stride = stride;
         }
 
-        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs)
+        public unsafe void DrawTexture(ISampler texture, Rectangle screen)
+        {
+            var s = (NearestSampler)texture;
+            var h = screen.Height;
+            var w = screen.Width;
+
+            var sh = s.h;
+            var sw = s.w;
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    var u = (float)x / w;
+                    var v = (float)y / h;
+
+
+                    // inline
+                    var tx = (int)(u * sh);
+                    var ty = (int)(v * sw);
+
+                    var textureOffset = ty * s.stride + tx * BytesPerPixel;
+                    // end inline
+
+                    int offset = y * stride + x * BytesPerPixel;
+
+                    texture.Sample(u, v, (framebuffer + offset + 0), (framebuffer + offset + 1), (framebuffer + offset + 2)); // new ColorRGB(255, 0, 0); // 
+
+
+                    //*(framebuffer + offset + 0) = s.texture[textureOffset + 0];
+                    //*(framebuffer + offset + 1) = s.texture[textureOffset + 1];
+                    //*(framebuffer + offset + 2) = s.texture[textureOffset + 2];
+                }
+            }
+        }
+
+        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs, ISampler texture)
         {
             var l = System.Math.Min(System.Math.Min(face[0].X, face[1].X), face[2].X);
             var r = System.Math.Max(System.Math.Max(face[0].X, face[1].X), face[2].X);
@@ -69,10 +105,15 @@ namespace SoftRender
                         var b2pc = z / attribs[1].Z * b2;
                         var b3pc = 1 - b1pc - b2pc;
 
+                        var u = attribs[0].U * b1pc + attribs[1].U * b2pc + attribs[2].U * b3pc;
+                        var v = attribs[0].V * b1pc + attribs[1].V * b2pc + attribs[2].V * b3pc;
+
                         var offset = y * stride + x * BytesPerPixel;
-                        *(framebuffer + offset + 2) = (byte)(attribs[0].R * b1pc + attribs[1].R * b2pc + attribs[2].R * b3pc);
-                        *(framebuffer + offset + 1) = (byte)(attribs[0].G * b1pc + attribs[1].G * b2pc + attribs[2].G * b3pc);
-                        *(framebuffer + offset + 0) = (byte)(attribs[0].B * b1pc + attribs[1].B * b2pc + attribs[2].B * b3pc);
+                        //*(framebuffer + offset + 2) = (byte)(attribs[0].R * b1pc + attribs[1].R * b2pc + attribs[2].R * b3pc);
+                        //*(framebuffer + offset + 1) = (byte)(attribs[0].G * b1pc + attribs[1].G * b2pc + attribs[2].G * b3pc);
+                        //*(framebuffer + offset + 0) = (byte)(attribs[0].B * b1pc + attribs[1].B * b2pc + attribs[2].B * b3pc);
+
+                        texture.Sample(u, v, framebuffer + offset + 0, framebuffer + offset + 1, framebuffer + offset + 2);
                     }
 
                     f1 -= e1y;

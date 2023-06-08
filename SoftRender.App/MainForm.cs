@@ -65,9 +65,9 @@ namespace SoftRender.App
             polygon[2] = viewportTransform * triNDC[2];
 
             var attribs = new VertexAttributes[3];
-            attribs[0] = new VertexAttributes(1, 255, 0, 0);
-            attribs[1] = new VertexAttributes(1, 0, 255, 0);
-            attribs[2] = new VertexAttributes(1, 0, 0, 255);
+            attribs[0] = new VertexAttributes(1, 255, 0, 0, 0.5f, 0.9f);
+            attribs[1] = new VertexAttributes(1, 0, 255, 0, 0, 0);
+            attribs[2] = new VertexAttributes(1, 0, 0, 255, 1, 0);
 
             var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
             var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
@@ -75,10 +75,12 @@ namespace SoftRender.App
             var sw = new Stopwatch();
             sw.Start();
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 20; i++)
             {
-                // fastRasterizer.Rasterize(polygon, attribs);
-                simpleRasterizer.Rasterize(polygon, attribs);
+                //fastRasterizer.Rasterize(polygon, attribs, sampler);
+                //simpleRasterizer.Rasterize(polygon, attribs, sampler);
+
+                //simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
             }
 
             sw.Stop();
@@ -86,7 +88,6 @@ namespace SoftRender.App
             Console.WriteLine(fastRasterizer.Dummy);
             Console.WriteLine(simpleRasterizer.Dummy);
             Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds + "ms");
-
 
             //var dimensions = new Point(700, 700);
             //var rect = new Rectangle(w / 2 - dimensions.X / 2, h / 2 - dimensions.Y / 2, dimensions.X, dimensions.Y);
@@ -123,10 +124,12 @@ namespace SoftRender.App
 
         private ISampler LoadTexture(string filename)
         {
-            var textureImage = Image.FromFile(filename);
-
+            using (var textureImage = Image.FromFile(filename))
             using (var textureBitmap = new Bitmap(textureImage.Width, textureImage.Height, PixelFormat.Format24bppRgb))
+            using (var g = System.Drawing.Graphics.FromImage(textureBitmap))
             {
+                g.DrawImage(textureImage, 0, 0);
+
                 var bitmapData = textureBitmap.LockBits(new Rectangle(Point.Empty, textureBitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 
                 var texture = new byte[textureImage.Width * textureImage.Height * 3];

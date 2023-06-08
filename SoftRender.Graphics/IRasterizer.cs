@@ -5,6 +5,6 @@ namespace SoftRender
 {
     public interface IRasterizer
     {
-        void Rasterize(Vector3D[] face, VertexAttributes[] attribs);
+        void Rasterize(Vector3D[] face, VertexAttributes[] attribs, ISampler textures);
     }
 }

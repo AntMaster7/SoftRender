@@ -30,14 +30,14 @@ namespace SoftRender
         /// 
         /// </summary>
         /// <param name="face">Face with viewport coordinates.</param>
-        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs)
+        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs, ISampler texture)
         {
-            var l = System.Math.Min(System.Math.Min(face[0].X, face[1].X), face[2].X);
-            var r = System.Math.Max(System.Math.Max(face[0].X, face[1].X), face[2].X);
-            var t = System.Math.Min(System.Math.Min(face[0].Y, face[1].Y), face[2].Y);
-            var b = System.Math.Max(System.Math.Max(face[0].Y, face[1].Y), face[2].Y);
+            var left = System.Math.Min(System.Math.Min(face[0].X, face[1].X), face[2].X);
+            var right = System.Math.Max(System.Math.Max(face[0].X, face[1].X), face[2].X);
+            var top = System.Math.Min(System.Math.Min(face[0].Y, face[1].Y), face[2].Y);
+            var bottom = System.Math.Max(System.Math.Max(face[0].Y, face[1].Y), face[2].Y);
 
-            var aabb = new Rectangle((int)l, (int)t, (int)(r - l), (int)(b - t));
+            var aabb = new Rectangle((int)left, (int)top, (int)(right - left), (int)(bottom - top));
 
             // 2D Cross: u1 * v2 - u2 * v1
             // u is the edge
@@ -102,6 +102,18 @@ namespace SoftRender
             var a1bs = Vector256.Create((float)attribs[1].B);
             var a2bs = Vector256.Create((float)attribs[2].B);
 
+            var a0us = Vector256.Create(attribs[0].U);
+            var a1us = Vector256.Create(attribs[1].U);
+            var a2us = Vector256.Create(attribs[2].U);
+
+            var a0vs = Vector256.Create(attribs[0].V);
+            var a1vs = Vector256.Create(attribs[1].V);
+            var a2vs = Vector256.Create(attribs[2].V);
+
+            float[] rs = new float[8];
+            float[] gs = new float[8];
+            float[] bs = new float[8];
+
             for (y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
                 //p.Ys = Vector256.Create(y);
@@ -122,20 +134,30 @@ namespace SoftRender
                         var z2 = Vector256.Create(attribs[1].Z);
                         var z3 = Vector256.Create(attribs[2].Z);
 
-                        var z1Inv = Ones / z1;
-                        var z2Inv = Ones / z2;
-                        var z3Inv = Ones / z3;
+                        var z1Inv = Avx.Reciprocal(z1);
+                        var z2Inv = Avx.Reciprocal(z2);
+                        var z3Inv = Avx.Reciprocal(z3);
 
                         var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                        var z = Ones / zInv;
+                        var z = Avx.Reciprocal(zInv);
 
                         var b1pc = z / z1 * b1;
                         var b2pc = z / z2 * b2;
                         var b3pc = Ones - b1pc - b2pc;
 
-                        pixel.Rs = Avx.ConvertToVector256Int32(a0rs * b1pc + a1rs * b2pc + a2rs * b3pc);
-                        pixel.Gs = Avx.ConvertToVector256Int32(a0gs * b1pc + a1gs * b2pc + a2gs * b3pc);
-                        pixel.Bs = Avx.ConvertToVector256Int32(a0bs * b1pc + a1bs * b2pc + a2bs * b3pc);
+                        var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
+                        var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
+
+                        texture.Sample(us, vs, rs, gs, bs);
+
+                        fixed (float* prs = rs)
+                        fixed (float* pgs = gs)
+                        fixed (float* pbs = bs)
+                        {
+                            pixel.Rs = Avx.ConvertToVector256Int32(Avx.LoadVector256(prs));
+                            pixel.Gs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pgs));
+                            pixel.Bs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pbs));
+                        }
 
                         var offset = y * stride + x * BytesPerPixel;
                         pixel.StoreInterleaved(framebuffer + offset, mask);
@@ -155,18 +177,6 @@ namespace SoftRender
                 p.Xs = start.Xs;
             }
         }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //
-        //private static bool Inside(int p1x, int p1y, i//nt p2x, int p2y) => p1x * p2x + p1y * p2y >= 0;
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)] // makes difference of almost 100%
-        //private static bool Inside(PointPacket p1, PointPacket p2)
-        //{
-        //    var inside = Sse.Add(Sse.Multiply(p1.Xs, p2.Xs), Sse.Multiply(p1.Ys, p2.Ys));
-        //    var lessThanZero = Sse.CompareLessThan(inside, VectorZero);
-        //    return Avx.TestC(VectorZero, lessThanZero);
-        //}
 
         private static unsafe string PrintVector(Vector128<float> v)
         {

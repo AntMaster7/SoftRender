@@ -8,16 +8,21 @@
         public int G;
         public int B;
 
+        public float U;
+        public float V;
+
         public VertexAttributes()
         {
         }
 
-        public VertexAttributes(float z, int r, int g, int b)
+        public VertexAttributes(float z, int r, int g, int b, float u, float v)
         {
             Z = z;
             R = r;
             G = g;
             B = b;
+            U = u;
+            V = v;
         }
     }
 }
