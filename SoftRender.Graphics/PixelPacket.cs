@@ -49,8 +49,14 @@ namespace SoftRender
             var moveMasks = Avx2.Shuffle(mask.AsByte(), Vector256.Create(
                 0, 0, 0, 4, 4, 4, 8, 8, 8, 12, 12, 12, 0xFF, 0xFF, 0xFF, 0xFF,
                 0, 0, 0, 4, 4, 4, 8, 8, 8, 12, 12, 12, 0xFF, 0xFF, 0xFF, 0xFF));
-            Sse2.MaskMove(rsgs.GetLower().AsByte(), moveMasks.GetLower().AsByte(), rgb);
-            Sse2.MaskMove(bs.GetLower().AsByte(), Avx2.ExtractVector128(moveMasks.AsByte(), 1), rgb + 12);
+
+            var moveMask0 = moveMasks.GetLower().AsByte();
+            Sse2.MaskMove(rsgs.GetLower().AsByte(), moveMask0, rgb);
+
+            var moveMask1 = Avx2.ExtractVector128(moveMasks.AsByte(), 1);
+            var gsbs = Avx.Shuffle(rsgs.AsSingle(), bs.AsSingle(), 0b01000011);
+            var gsbs0 = Sse2.Shuffle(gsbs.GetLower().AsInt32(), 0b00111000);
+            Sse2.MaskMove(gsbs0.AsByte(), moveMask1, rgb + 12);
         }
     }
 }
