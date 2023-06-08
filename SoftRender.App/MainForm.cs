@@ -1,3 +1,4 @@
+using SoftRender.Graphics;
 using SoftRender.SRMath;
 using System.Diagnostics;
 using System.Drawing.Imaging;
@@ -12,11 +13,11 @@ namespace SoftRender.App
         private Vector2D pr;
         private ISampler sampler;
 
-        private Vector2D[] tri = new Vector2D[]
+        private Vector3D[] triNDC = new Vector3D[]
         {
-            new Vector2D(0.0f, 0.3f),
-            new Vector2D(-0.3f, -0.7f),
-            new Vector2D(0.7f, -0.7f)
+            new Vector3D(0.0f, 0.3f, 1f),
+            new Vector3D(-0.3f, -0.7f,1f),
+            new Vector3D(0.7f, -0.7f, 1f)
         };
 
         public MainForm()
@@ -58,10 +59,15 @@ namespace SoftRender.App
 
             var viewportTransform = new ViewportTransform(w, h);
 
-            var polygon = new Point[3];
-            polygon[0] = viewportTransform * tri[0];
-            polygon[1] = viewportTransform * tri[1];
-            polygon[2] = viewportTransform * tri[2];
+            var polygon = new Vector3D[3];
+            polygon[0] = viewportTransform * triNDC[0];
+            polygon[1] = viewportTransform * triNDC[1];
+            polygon[2] = viewportTransform * triNDC[2];
+
+            var attribs = new VertexAttributes[3];
+            attribs[0] = new VertexAttributes(1, 255, 0, 0);
+            attribs[1] = new VertexAttributes(1, 0, 255, 0);
+            attribs[2] = new VertexAttributes(1, 0, 0, 255);
 
             var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
             var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
@@ -71,8 +77,8 @@ namespace SoftRender.App
 
             for (int i = 0; i < 100; i++)
             {
-                fastRasterizer.Rasterize(polygon);
-                // simpleRasterizer.Rasterize(polygon);
+                // fastRasterizer.Rasterize(polygon, attribs);
+                simpleRasterizer.Rasterize(polygon, attribs);
             }
 
             sw.Stop();
@@ -122,7 +128,7 @@ namespace SoftRender.App
             using (var textureBitmap = new Bitmap(textureImage.Width, textureImage.Height, PixelFormat.Format24bppRgb))
             {
                 var bitmapData = textureBitmap.LockBits(new Rectangle(Point.Empty, textureBitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-                
+
                 var texture = new byte[textureImage.Width * textureImage.Height * 3];
                 Marshal.Copy(bitmapData.Scan0, texture, 0, texture.Length);
 

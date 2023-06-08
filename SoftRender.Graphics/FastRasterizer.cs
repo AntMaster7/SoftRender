@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using SoftRender.Graphics;
+using SoftRender.SRMath;
+using System.Drawing;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -8,10 +10,10 @@ namespace SoftRender
     {
         private const byte BytesPerPixel = 3;
 
-        private static readonly Vector256<int> VectorZero = Vector256<int>.Zero;
+        private static readonly Vector256<float> Zeros = Vector256<float>.Zero;
+        private static readonly Vector256<float> Eights = Vector256.Create((float)8);
+        private static readonly Vector256<float> Ones = Vector256.Create(1f);
         private static readonly Vector128<float> VectorAllBitsSet = Vector128<float>.AllBitsSet;
-        private static readonly Vector256<int> VectorEight = Vector256.Create(8);
-        private static readonly Vector256<int> VectorOne = Vector256.Create(1);
 
         public int Dummy = 0;
 
@@ -24,14 +26,18 @@ namespace SoftRender
             this.stride = stride;
         }
 
-        public unsafe void Rasterize(Point[] face)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="face">Face with viewport coordinates.</param>
+        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs)
         {
             var l = System.Math.Min(System.Math.Min(face[0].X, face[1].X), face[2].X);
             var r = System.Math.Max(System.Math.Max(face[0].X, face[1].X), face[2].X);
             var t = System.Math.Min(System.Math.Min(face[0].Y, face[1].Y), face[2].Y);
             var b = System.Math.Max(System.Math.Max(face[0].Y, face[1].Y), face[2].Y);
 
-            var aabb = new Rectangle(l, t, r - l, b - t);
+            var aabb = new Rectangle((int)l, (int)t, (int)(r - l), (int)(b - t));
 
             // 2D Cross: u1 * v2 - u2 * v1
             // u is the edge
@@ -52,8 +58,8 @@ namespace SoftRender
 
             var start = new PointPacket()
             {
-                Xs = Vector256.Create(aabb.X, aabb.X + 1, aabb.X + 2, aabb.X + 3, aabb.X + 4, aabb.X + 5, aabb.X + 6, aabb.X + 7),
-                Ys = Vector256.Create(aabb.Y)
+                Xs = Vector256.Create((float)aabb.X, aabb.X + 1, aabb.X + 2, aabb.X + 3, aabb.X + 4, aabb.X + 5, aabb.X + 6, aabb.X + 7),
+                Ys = Vector256.Create((float)aabb.Y)
             };
 
             // interpolaters
@@ -66,24 +72,35 @@ namespace SoftRender
             // var t1 = Avx2.And(Vector256.Equals(n1.Xs, VectorZero), Vector256.GreaterThanOrEqual(n1.Ys, VectorZero));
             // var tl1 = Avx2.Or(l1, t1);
 
+            var negativeAreaTimesTwo = -e2.Ys * e1.Xs + e2.Xs * e1.Ys; // perp dot product
+
             var p = new PointPacket();
 
             int x, y;
 
             var pixel = new PixelPacket();
-            pixel.Rs = Vector256.Create(255);
-            pixel.Gs = Vector256.Create(128);
-            pixel.Bs = Vector256.Create(64);
 
-            var i = e1.Ys * VectorEight;
-            var j = e2.Ys * VectorEight;
-            var k = e3.Ys * VectorEight;
+            var i = e1.Ys * Eights;
+            var j = e2.Ys * Eights;
+            var k = e3.Ys * Eights;
 
-            var aabbWidth = Vector256.Create(aabb.Width);
+            var aabbWidth = Vector256.Create((float)aabb.Width);
 
             var g = e1.Xs + (e1.Ys * aabbWidth);
             var h = e2.Xs + (e2.Ys * aabbWidth);
             var q = e3.Xs + (e3.Ys * aabbWidth);
+
+            var a0rs = Vector256.Create((float)attribs[0].R);
+            var a1rs = Vector256.Create((float)attribs[1].R);
+            var a2rs = Vector256.Create((float)attribs[2].R);
+
+            var a0gs = Vector256.Create((float)attribs[0].G);
+            var a1gs = Vector256.Create((float)attribs[1].G);
+            var a2gs = Vector256.Create((float)attribs[2].G);
+
+            var a0bs = Vector256.Create((float)attribs[0].B);
+            var a1bs = Vector256.Create((float)attribs[1].B);
+            var a2bs = Vector256.Create((float)attribs[2].B);
 
             for (y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
@@ -91,19 +108,37 @@ namespace SoftRender
 
                 for (x = aabb.X; x < aabb.X + aabb.Width; x += 8)
                 {
-                    var mask = Vector256.GreaterThanOrEqual(i1, VectorZero);
-                    mask = Avx2.And(mask, Vector256.GreaterThanOrEqual(i2, VectorZero));
-                    mask = Avx2.And(mask, Vector256.GreaterThanOrEqual(i3, VectorZero));
+                    var mask = Vector256.GreaterThanOrEqual(i1, Zeros);
+                    mask = Avx.And(mask, Vector256.GreaterThanOrEqual(i2, Zeros));
+                    mask = Avx.And(mask, Vector256.GreaterThanOrEqual(i3, Zeros));
 
-                    if (Vector256.GreaterThanAny(mask.AsByte(), VectorZero.AsByte()))
+                    if (Vector256.GreaterThanAny(mask.AsByte(), Zeros.AsByte()))
                     {
+                        var b1 = i2 / negativeAreaTimesTwo;
+                        var b2 = i3 / negativeAreaTimesTwo;
+                        var b3 = Ones - b1 - b2;
+
+                        var z1 = Vector256.Create(attribs[0].Z);
+                        var z2 = Vector256.Create(attribs[1].Z);
+                        var z3 = Vector256.Create(attribs[2].Z);
+
+                        var z1Inv = Ones / z1;
+                        var z2Inv = Ones / z2;
+                        var z3Inv = Ones / z3;
+
+                        var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
+                        var z = Ones / zInv;
+
+                        var b1pc = z / z1 * b1;
+                        var b2pc = z / z2 * b2;
+                        var b3pc = Ones - b1pc - b2pc;
+
+                        pixel.Rs = Avx.ConvertToVector256Int32(a0rs * b1pc + a1rs * b2pc + a2rs * b3pc);
+                        pixel.Gs = Avx.ConvertToVector256Int32(a0gs * b1pc + a1gs * b2pc + a2gs * b3pc);
+                        pixel.Bs = Avx.ConvertToVector256Int32(a0bs * b1pc + a1bs * b2pc + a2bs * b3pc);
+
                         var offset = y * stride + x * BytesPerPixel;
                         pixel.StoreInterleaved(framebuffer + offset, mask);
-
-                        // var offset = y * stride + x * BytesPerPixel;
-                        //*(framebuffer + offset + 2) = 255;
-                        //*(framebuffer + offset + 1) = 128;
-                        //*(framebuffer + offset + 0) = 64;
                     }
 
                     i1 -= i;

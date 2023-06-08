@@ -1,9 +1,10 @@
-﻿using System.Drawing;
+﻿using SoftRender.Graphics;
+using SoftRender.SRMath;
 
 namespace SoftRender
 {
     public interface IRasterizer
     {
-        void Rasterize(Point[] face);
+        void Rasterize(Vector3D[] face, VertexAttributes[] attribs);
     }
 }

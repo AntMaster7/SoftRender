@@ -6,26 +6,26 @@ namespace SoftRender
 {
     public class PointPacket
     {
-        public Vector256<int> Xs;
-        public Vector256<int> Ys;
+        public Vector256<float> Xs;
+        public Vector256<float> Ys;
 
         public PointPacket()
         {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PointPacket(int xs, int ys)
+        public PointPacket(float xs, float ys)
         {
-            Xs = Vector256.Create<int>(xs);
-            Ys = Vector256.Create<int>(ys);
+            Xs = Vector256.Create<float>(xs);
+            Ys = Vector256.Create<float>(ys);
         }
 
         public static PointPacket operator -(PointPacket left, PointPacket right)
         {
             return new PointPacket()
             {
-                Xs = Avx2.Subtract(left.Xs, right.Xs),
-                Ys = Avx2.Subtract(left.Ys, right.Ys)
+                Xs = Avx.Subtract(left.Xs, right.Xs),
+                Ys = Avx.Subtract(left.Ys, right.Ys)
             };
         }
     }

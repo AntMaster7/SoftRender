@@ -5,8 +5,8 @@ namespace SoftRender.SRMath
     // chat gpt
     public class Vector2D
     {
-        public float X { get; set; }
-        public float Y { get; set; }
+        public float X;
+        public float Y;
 
         public Vector2D(float x, float y)
         {
@@ -51,7 +51,7 @@ namespace SoftRender.SRMath
 
         public override string ToString()
         {
-            return $"({X}, {Y})";
+            return $"(X={X}, Y={Y})";
         }
     }
 }

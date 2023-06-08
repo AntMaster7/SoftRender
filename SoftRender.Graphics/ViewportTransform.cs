@@ -16,12 +16,12 @@ namespace SoftRender
             halfHeight = height / 2;
         }
 
-        public static Point operator *(ViewportTransform t, Vector2D v)
+        public static Vector3D operator *(ViewportTransform t, Vector3D v)
         {
             int x = (int)(v.X * t.halfWidth + t.halfWidth);
             int y = t.height - (int)(v.Y * t.halfHeight + t.halfHeight);
 
-            return new Point(x, y);
+            return new Vector3D(x, y, v.Z);
         }
     }
 }
