@@ -92,17 +92,17 @@ namespace SoftRender
             var h = e2.Xs + (e2.Ys * aabbWidth);
             var q = e3.Xs + (e3.Ys * aabbWidth);
 
-            var a0rs = Vector256.Create((float)attribs[0].R);
-            var a1rs = Vector256.Create((float)attribs[1].R);
-            var a2rs = Vector256.Create((float)attribs[2].R);
+            //var a0rs = Vector256.Create((float)attribs[0].R);
+            //var a1rs = Vector256.Create((float)attribs[1].R);
+            //var a2rs = Vector256.Create((float)attribs[2].R);
 
-            var a0gs = Vector256.Create((float)attribs[0].G);
-            var a1gs = Vector256.Create((float)attribs[1].G);
-            var a2gs = Vector256.Create((float)attribs[2].G);
+            //var a0gs = Vector256.Create((float)attribs[0].G);
+            //var a1gs = Vector256.Create((float)attribs[1].G);
+            //var a2gs = Vector256.Create((float)attribs[2].G);
 
-            var a0bs = Vector256.Create((float)attribs[0].B);
-            var a1bs = Vector256.Create((float)attribs[1].B);
-            var a2bs = Vector256.Create((float)attribs[2].B);
+            //var a0bs = Vector256.Create((float)attribs[0].B);
+            //var a1bs = Vector256.Create((float)attribs[1].B);
+            //var a2bs = Vector256.Create((float)attribs[2].B);
 
             var a0us = Vector256.Create(attribs[0].U);
             var a1us = Vector256.Create(attribs[1].U);
@@ -112,15 +112,7 @@ namespace SoftRender
             var a1vs = Vector256.Create(attribs[1].V);
             var a2vs = Vector256.Create(attribs[2].V);
 
-            float[] rs = new float[8];
-            float[] gs = new float[8];
-            float[] bs = new float[8];
-
             var sampler = (NearestSampler)texture;
-
-            int counter = 0;
-            var sb = new StringBuilder();
-            var sbu = new StringBuilder();
 
             for (y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
@@ -158,33 +150,14 @@ namespace SoftRender
 
                         var offset = y * stride + x * BytesPerPixel;
 
-                        if(counter == 32)
-                        {
-                            sampler.SamplePacketDebug(us, vs, pixel, sb, mask);
-                            sbu.Append(PrintMasked(us, mask));
-                        }
-                        else
-                        {
-                            sampler.SamplePacket(us, vs, pixel);
-                        }
-                        
-                        
+                        sampler.SamplePacket(us, vs, pixel);
                         pixel.StoreInterleaved(framebuffer + offset, mask);
-
-                        if (counter == 32)
-                        {
-                            // sb.Append(PrintMasked(us, mask));
-                        }
                     }
 
                     i1 -= i;
                     i2 -= j;
                     i3 -= k;
-
-                    //p.Xs = Avx2.Add(p.Xs, VectorOne);
                 }
-
-                counter++;
 
                 i1 += g;
                 i2 += h;
@@ -192,9 +165,6 @@ namespace SoftRender
 
                 p.Xs = start.Xs;
             }
-
-            Debug.WriteLine(sb.ToString());
-            // Debug.WriteLine(sbu.ToString());
         }
 
         private static unsafe string PrintVector(Vector128<float> v)

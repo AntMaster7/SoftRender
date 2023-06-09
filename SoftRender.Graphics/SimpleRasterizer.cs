@@ -71,10 +71,6 @@ namespace SoftRender
 
             var sampler = (NearestSampler)texture;
 
-            int counter = 0;
-            var sb = new StringBuilder();
-            var sbu = new StringBuilder();
-
             for (y = aabb.Y; y < aabb.Y + aabb.Height - 1; y++)
             {
                 for (x = aabb.X; x < aabb.X + aabb.Width; x++)
@@ -104,15 +100,7 @@ namespace SoftRender
                         //*(framebuffer + offset + 1) = (byte)(attribs[0].G * b1pc + attribs[1].G * b2pc + attribs[2].G * b3pc);
                         //*(framebuffer + offset + 0) = (byte)(attribs[0].B * b1pc + attribs[1].B * b2pc + attribs[2].B * b3pc);
 
-                        if(counter == 32)
-                        {
-                            sbu.Append(u).Append(" | ");
-                            sampler.SampleDebug(u, v, framebuffer + offset, sb);
-                        }
-                        else
-                        {
-                            sampler.Sample(u, v, framebuffer + offset);
-                        }
+                        sampler.Sample(u, v, framebuffer + offset);
 
                     }
 
@@ -121,18 +109,10 @@ namespace SoftRender
                     f3 -= e3y;
                 }
 
-                counter++;
-
                 f1 += i;
                 f2 += j;
                 f3 += k;
             }
-
-            Debug.WriteLine(sb.ToString());
-            // Debug.WriteLine(sbu.ToString());
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool Inside(int p1x, int p1y, int p2x, int p2y) => p1x * p2x + p1y * p2y >= 0;
     }
 }
