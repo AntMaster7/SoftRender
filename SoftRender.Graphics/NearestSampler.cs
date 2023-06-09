@@ -1,7 +1,9 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Security.Cryptography;
 
 namespace SoftRender
 {
@@ -13,9 +15,6 @@ namespace SoftRender
         public readonly int stride;
 
         public int[] _offsets = new int[8];
-        private float[] _rs = new float[8];
-        private float[] _gs = new float[8];
-        private float[] _bs = new float[8];
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NearestSampler"/> class.
@@ -28,12 +27,12 @@ namespace SoftRender
             w = size.Width;
             h = size.Height;
 
-            stride = w * 3;
+            stride = w * 4;
         }
 
         public unsafe void ReadPixel(int x, int y, byte* rgb)
         {
-            int offset = y * stride + x * 3;
+            int offset = y * stride + x * 4;
 
             *rgb = texture[offset + 0];
             *(rgb + 1) = texture[offset + 1];
@@ -46,7 +45,7 @@ namespace SoftRender
             var tx = (int)(u * w);
             var ty = (int)(v * h);
 
-            int offset = ty * stride + tx * 3;
+            int offset = ty * stride + tx * 4;
 
             *rgb = texture[offset + 0];
             *(rgb + 1) = texture[offset + 1];
@@ -54,57 +53,27 @@ namespace SoftRender
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void SamplePacket(Vector256<float> us, Vector256<float> vs, PixelPacket pixel)
+        public void Sample(Vector256<float> us, Vector256<float> vs, PixelPacket pixel)
         {
             var xs = Avx.Floor(us * w);
             var ys = Avx.Floor(vs * h);
 
-            var offsets = Avx.ConvertToVector256Int32(xs * 3 + ys * stride);
+            var offsets = Avx.ConvertToVector256Int32(xs * 4 + ys * stride);
 
-            fixed (int* p_offsets = _offsets)
+            fixed(byte* pTexture = texture)
             {
-                Avx.Store(p_offsets, offsets);
-            }
+                var lower = Avx2.GatherVector128((int*)pTexture, offsets.GetLower(), 1);
+                var upper = Avx2.GatherVector128((int*)pTexture, Avx.ExtractVector128(offsets, 1), 1);
+                var rgb = Vector256.Create(lower, upper);
 
-            _rs[0] = texture[_offsets[0] + 2];
-            _gs[0] = texture[_offsets[0] + 1];
-            _bs[0] = texture[_offsets[0] + 0];
+                var rs = Avx2.ShiftLeftLogical(rgb, 8);
+                pixel.Rs = Avx2.ShiftRightLogical(rs, 24);
 
-            _rs[1] = texture[_offsets[1] + 2];
-            _gs[1] = texture[_offsets[1] + 1];
-            _bs[1] = texture[_offsets[1] + 0];
+                var gs = Avx2.ShiftLeftLogical(rgb, 16);
+                pixel.Gs = Avx2.ShiftRightLogical(gs, 24);
 
-            _rs[2] = texture[_offsets[2] + 2];
-            _gs[2] = texture[_offsets[2] + 1];
-            _bs[2] = texture[_offsets[2] + 0];
-
-            _rs[3] = texture[_offsets[3] + 2];
-            _gs[3] = texture[_offsets[3] + 1];
-            _bs[3] = texture[_offsets[3] + 0];
-
-            _rs[4] = texture[_offsets[4] + 2];
-            _gs[4] = texture[_offsets[4] + 1];
-            _bs[4] = texture[_offsets[4] + 0];
-
-            _rs[5] = texture[_offsets[5] + 2];
-            _gs[5] = texture[_offsets[5] + 1];
-            _bs[5] = texture[_offsets[5] + 0];
-
-            _rs[6] = texture[_offsets[6] + 2];
-            _gs[6] = texture[_offsets[6] + 1];
-            _bs[6] = texture[_offsets[6] + 0];
-
-            _rs[7] = texture[_offsets[7] + 2];
-            _gs[7] = texture[_offsets[7] + 1];
-            _bs[7] = texture[_offsets[7] + 0];
-
-            fixed (float* prs = _rs)
-            fixed (float* pgs = _gs)
-            fixed (float* pbs = _bs)
-            {
-                pixel.Rs = Avx.ConvertToVector256Int32(Avx.LoadVector256(prs));
-                pixel.Gs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pgs));
-                pixel.Bs = Avx.ConvertToVector256Int32(Avx.LoadVector256(pbs));
+                var bs = Avx2.ShiftLeftLogical(rgb, 24);
+                pixel.Bs = Avx2.ShiftRightLogical(bs, 24);
             }
         }
     }

@@ -25,7 +25,7 @@ namespace SoftRender.App
             InitializeComponent();
 
             sampler = LoadTexture("brickwall-512x512.jpg");
-            // sampler = LoadTexture("test.png");
+            //sampler = LoadTexture("test.png");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
@@ -124,20 +124,17 @@ namespace SoftRender.App
 
         private ISampler LoadTexture(string filename)
         {
-            using (var textureImage = Image.FromFile(filename))
-            using (var textureBitmap = new Bitmap(textureImage))  //textureImage.Width, textureImage.Height, PixelFormat.Format24bppRgb))
-            //using (var g = System.Drawing.Graphics.FromImage(textureBitmap))
+            using (var image = Image.FromFile(filename))
+            using (var bitmap = new Bitmap(image))
             {
-                // g.DrawImage(textureImage, 0, 0, textureImage.Width, textureImage.Height);
+                var bitmapData = bitmap.LockBits(new Rectangle(Point.Empty, bitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
 
-                var bitmapData = textureBitmap.LockBits(new Rectangle(Point.Empty, textureBitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-
-                var texture = new byte[textureImage.Width * textureImage.Height * 3];
+                var texture = new byte[image.Width * image.Height * 4];
                 Marshal.Copy(bitmapData.Scan0, texture, 0, texture.Length);
 
-                textureBitmap.UnlockBits(bitmapData);
+                bitmap.UnlockBits(bitmapData);
 
-                return new NearestSampler(texture, textureBitmap.Size);
+                return new NearestSampler(texture, bitmap.Size);
             }
         }
     }
