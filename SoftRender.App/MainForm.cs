@@ -25,6 +25,7 @@ namespace SoftRender.App
             InitializeComponent();
 
             sampler = LoadTexture("brickwall-512x512.jpg");
+            // sampler = LoadTexture("test.png");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
@@ -75,11 +76,11 @@ namespace SoftRender.App
             var sw = new Stopwatch();
             sw.Start();
 
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1; i++)
             {
                 fastRasterizer.Rasterize(polygon, attribs, sampler);
-                //simpleRasterizer.Rasterize(polygon, attribs, sampler);
-                //simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
+                // simpleRasterizer.Rasterize(polygon, attribs, sampler);
+                // simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
             }
 
             sw.Stop();
@@ -124,10 +125,10 @@ namespace SoftRender.App
         private ISampler LoadTexture(string filename)
         {
             using (var textureImage = Image.FromFile(filename))
-            using (var textureBitmap = new Bitmap(textureImage.Width, textureImage.Height, PixelFormat.Format24bppRgb))
-            using (var g = System.Drawing.Graphics.FromImage(textureBitmap))
+            using (var textureBitmap = new Bitmap(textureImage))  //textureImage.Width, textureImage.Height, PixelFormat.Format24bppRgb))
+            //using (var g = System.Drawing.Graphics.FromImage(textureBitmap))
             {
-                g.DrawImage(textureImage, 0, 0);
+                // g.DrawImage(textureImage, 0, 0, textureImage.Width, textureImage.Height);
 
                 var bitmapData = textureBitmap.LockBits(new Rectangle(Point.Empty, textureBitmap.Size), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 

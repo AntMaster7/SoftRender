@@ -1,8 +1,10 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace SoftRender
 {
@@ -116,6 +118,10 @@ namespace SoftRender
 
             var sampler = (NearestSampler)texture;
 
+            int counter = 0;
+            var sb = new StringBuilder();
+            var sbu = new StringBuilder();
+
             for (y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
                 //p.Ys = Vector256.Create(y);
@@ -136,12 +142,12 @@ namespace SoftRender
                         var z2 = Vector256.Create(attribs[1].Z);
                         var z3 = Vector256.Create(attribs[2].Z);
 
-                        var z1Inv = Avx.Reciprocal(z1);
-                        var z2Inv = Avx.Reciprocal(z2);
-                        var z3Inv = Avx.Reciprocal(z3);
+                        var z1Inv = Ones / z1; // Avx.Reciprocal(z1);
+                        var z2Inv = Ones / z2; // Avx.Reciprocal(z2);
+                        var z3Inv = Ones / z3; // Avx.Reciprocal(z3);
 
                         var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                        var z = Avx.Reciprocal(zInv);
+                        var z = Ones / zInv; // Avx.Reciprocal(zInv);
 
                         var b1pc = z / z1 * b1;
                         var b2pc = z / z2 * b2;
@@ -150,10 +156,25 @@ namespace SoftRender
                         var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
                         var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
 
-                        sampler.SamplePacket(us, vs, pixel);
-
                         var offset = y * stride + x * BytesPerPixel;
+
+                        if(counter == 32)
+                        {
+                            sampler.SamplePacketDebug(us, vs, pixel, sb, mask);
+                            sbu.Append(PrintMasked(us, mask));
+                        }
+                        else
+                        {
+                            sampler.SamplePacket(us, vs, pixel);
+                        }
+                        
+                        
                         pixel.StoreInterleaved(framebuffer + offset, mask);
+
+                        if (counter == 32)
+                        {
+                            // sb.Append(PrintMasked(us, mask));
+                        }
                     }
 
                     i1 -= i;
@@ -163,12 +184,17 @@ namespace SoftRender
                     //p.Xs = Avx2.Add(p.Xs, VectorOne);
                 }
 
+                counter++;
+
                 i1 += g;
                 i2 += h;
                 i3 += q;
 
                 p.Xs = start.Xs;
             }
+
+            Debug.WriteLine(sb.ToString());
+            // Debug.WriteLine(sbu.ToString());
         }
 
         private static unsafe string PrintVector(Vector128<float> v)
@@ -180,6 +206,25 @@ namespace SoftRender
             }
 
             return $"{f[3]}, {f[2]}, {f[1]}, {f[0]}";
+        }
+
+        private static string PrintMasked(Vector256<float> v, Vector256<float> mask)
+        {
+            var sb = new StringBuilder(20);
+
+            fixed (float* m = new float[8])
+            {
+                Avx.Store(m, mask);
+                for (int i = 0; i < 8; i++)
+                {
+                    if (float.IsNaN(m[i]))
+                    {
+                        sb.Append(v[i]).Append(" | ");
+                    }
+                }
+            }
+
+            return sb.ToString(); // .Trim(new char[] { ' ', '|' });
         }
     }
 }
