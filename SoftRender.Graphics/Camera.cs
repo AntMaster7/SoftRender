@@ -31,7 +31,7 @@ namespace SoftRender
         public float NearPlane { get; set; }
 
         /// <summary>
-        /// Creates the matrix for the frustum projection. The depth is inversed.
+        /// Creates a matrix for the frustum projection. The depth is reversed.
         /// </summary>
         /// <returns>The projection matrix.</returns>
         public Matrix4D CreateProjectionMatrix()

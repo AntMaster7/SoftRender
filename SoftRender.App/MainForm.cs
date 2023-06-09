@@ -18,6 +18,10 @@ namespace SoftRender.App
             new Vector3D(0.0f, 0.3f, 1f),
             new Vector3D(-0.3f, -0.7f,1f),
             new Vector3D(0.7f, -0.7f, 1f)
+
+            //new Vector3D(1.0f, 1.0f, 1f),
+            //new Vector3D(-1.0f, 1.0f,1f),
+            //new Vector3D(-1.0f, -1.0f, 1f)
         };
 
         public MainForm()
@@ -74,7 +78,6 @@ namespace SoftRender.App
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
 
-
                 sw.Start();
 
                 for (int i = 0; i < iterations; i++)
@@ -89,7 +92,9 @@ namespace SoftRender.App
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
             {
-                g.DrawString($"{sw.ElapsedMilliseconds} ms / {iterations} iterations", SystemFonts.DefaultFont, Brushes.White, 10, 17);
+                var fps = (int)(iterations * 1000 / sw.ElapsedMilliseconds);
+                var info = $"{sw.ElapsedMilliseconds} ms / {iterations} iterations = {fps} fps";
+                g.DrawString(info, SystemFonts.DefaultFont, Brushes.White, 10, 17);
             }
 
             //var dimensions = new Point(700, 700);
