@@ -39,8 +39,6 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            WinNative.AllocConsole();
-
             Draw();
         }
 
@@ -51,12 +49,8 @@ namespace SoftRender.App
 
         private unsafe void Draw()
         {
-            using var ctx = new BitmapContext(bitmap);
-
             int w = bitmap.Width;
             int h = bitmap.Height;
-
-            ctx.Clear(0);
 
             var viewportTransform = new ViewportTransform(w, h);
 
@@ -70,24 +64,33 @@ namespace SoftRender.App
             attribs[1] = new VertexAttributes(1, 0, 255, 0, 0, 0);
             attribs[2] = new VertexAttributes(1, 0, 0, 255, 1, 0);
 
-            var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
-            var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
-
+            int iterations = 100;
             var sw = new Stopwatch();
-            sw.Start();
 
-            for (int i = 0; i < 100; i++)
+            using (var ctx = new BitmapContext(bitmap))
             {
-                fastRasterizer.Rasterize(polygon, attribs, sampler);
-                // simpleRasterizer.Rasterize(polygon, attribs, sampler);
-                // simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
+                ctx.Clear(0);
+
+                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
+                var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
+
+
+                sw.Start();
+
+                for (int i = 0; i < iterations; i++)
+                {
+                    fastRasterizer.Rasterize(polygon, attribs, sampler);
+                    // simpleRasterizer.Rasterize(polygon, attribs, sampler);
+                    // simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
+                }
+
+                sw.Stop();
             }
 
-            sw.Stop();
-
-            Console.WriteLine(fastRasterizer.Dummy);
-            Console.WriteLine(simpleRasterizer.Dummy);
-            Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds + "ms");
+            using (var g = System.Drawing.Graphics.FromImage(bitmap))
+            {
+                g.DrawString($"{sw.ElapsedMilliseconds} ms / {iterations} iterations", SystemFonts.DefaultFont, Brushes.White, 10, 17);
+            }
 
             //var dimensions = new Point(700, 700);
             //var rect = new Rectangle(w / 2 - dimensions.X / 2, h / 2 - dimensions.Y / 2, dimensions.X, dimensions.Y);

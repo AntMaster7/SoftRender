@@ -49,7 +49,7 @@
             animationTimer.Interval = 32;
             animationTimer.Tick += AnimationTimer_Tick;
             // 
-            // Main
+            // MainForm
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -57,8 +57,8 @@
             Controls.Add(renderPictureBox);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
-            Name = "Main";
-            Text = "Software Rasterizer";
+            Name = "MainForm";
+            Text = "SoftRender - A Software Rasterizer";
             Load += Main_Load;
             ((System.ComponentModel.ISupportInitialize)renderPictureBox).EndInit();
             ResumeLayout(false);
