@@ -9,24 +9,26 @@ namespace SoftRender.App
     public partial class MainForm : Form
     {
         private Bitmap bitmap;
-        private Point p1, p2;
-        private Vector2D pr;
         private ISampler sampler;
 
-        private Vector3D[] triNDC = new Vector3D[]
-        {
-            new Vector3D(0.0f, 0.3f, 1f),
-            new Vector3D(-0.3f, -0.7f,1f),
-            new Vector3D(0.7f, -0.7f, 1f)
+        //private Vector3D[] model = new Vector3D[]
+        //{
+        //    new Vector3D(0.0f, 0.3f, -1f),
+        //    new Vector3D(-0.3f, -0.7f, -1f),
+        //    new Vector3D(0.7f, -0.7f, -1f)
 
-            //new Vector3D(1.0f, 1.0f, 1f),
-            //new Vector3D(-1.0f, 1.0f,1f),
-            //new Vector3D(-1.0f, -1.0f, 1f)
-        };
+        //    //new Vector3D(1.0f, 1.0f, 1f),
+        //    //new Vector3D(-1.0f, 1.0f,1f),
+        //    //new Vector3D(-1.0f, -1.0f, 1f)
+        //};
+
+        private Model model;
 
         public MainForm()
         {
             InitializeComponent();
+
+            model = ObjLoader.Load("Cube.obj");
 
             sampler = LoadTexture("brickwall-512x512.jpg");
             //sampler = LoadTexture("test.png");
@@ -34,42 +36,40 @@ namespace SoftRender.App
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            p1 = new Point(bitmap.Width / 2, bitmap.Height / 2);
-            p2 = new Point(p1.X + 100, p1.Y);
-            pr = new Vector2D(p2);
-
-            // animationTimer.Start();
+            animationTimer.Start();
         }
 
         private void Main_Load(object sender, EventArgs e)
         {
-            Draw();
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(1f);
+
+            for (int i = 0; i < model.Vertices.Length; i++)
+            {
+                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
+            }
+
+            DrawArrays(model.Vertices, model.Attributes);
         }
 
-        private void RenderPictureBox_SizeChanged(object sender, EventArgs e)
+        private unsafe void DrawArrays(Vector3D[] vertices, VertexAttributes[] attributes)
         {
-            Draw();
-        }
+            if (vertices.Length % 3 != 0)
+            {
+                throw new ArgumentException("Number of vertices must be a multiple of 3.");
+            }
 
-        private unsafe void Draw()
-        {
             int w = bitmap.Width;
             int h = bitmap.Height;
 
+            var camera = new Camera((float)w / h);
+            var frustum = camera.CreateProjectionMatrix();
+
             var viewportTransform = new ViewportTransform(w, h);
 
-            var polygon = new Vector3D[3];
-            polygon[0] = viewportTransform * triNDC[0];
-            polygon[1] = viewportTransform * triNDC[1];
-            polygon[2] = viewportTransform * triNDC[2];
-
-            var attribs = new VertexAttributes[3];
-            attribs[0] = new VertexAttributes(1, 255, 0, 0, 0.5f, 0.9f);
-            attribs[1] = new VertexAttributes(1, 0, 255, 0, 0, 0);
-            attribs[2] = new VertexAttributes(1, 0, 0, 255, 1, 0);
-
-            int iterations = 100;
+            int iterations = 1;
             var sw = new Stopwatch();
+
+            bool wireframe = true;
 
             using (var ctx = new BitmapContext(bitmap))
             {
@@ -80,11 +80,40 @@ namespace SoftRender.App
 
                 sw.Start();
 
-                for (int i = 0; i < iterations; i++)
+                var clipSpace = new Vector4D[3];
+                var ndc = new Vector3D[3];
+                var vp = new Vector3D[3];
+                var attribs = new VertexAttributes[3];
+
+                for (int i = 0; i < vertices.Length; i += 3)
                 {
-                    fastRasterizer.Rasterize(polygon, attribs, sampler);
-                    // simpleRasterizer.Rasterize(polygon, attribs, sampler);
-                    // simpleRasterizer.DrawTexture(sampler, new Rectangle(0,0, w, h));
+                    clipSpace[0] = frustum * vertices[i + 0];
+                    clipSpace[1] = frustum * vertices[i + 1];
+                    clipSpace[2] = frustum * vertices[i + 2];
+
+                    ndc[0] = clipSpace[0].PerspectiveDivide();
+                    ndc[1] = clipSpace[1].PerspectiveDivide();
+                    ndc[2] = clipSpace[2].PerspectiveDivide();
+
+                    vp[0] = viewportTransform * ndc[0];
+                    vp[1] = viewportTransform * ndc[1];
+                    vp[2] = viewportTransform * ndc[2];
+
+                    attribs[0] = attributes[i + 0];
+                    attribs[1] = attributes[i + 1];
+                    attribs[2] = attributes[i + 2];
+
+                    if (wireframe)
+                    {
+                        ctx.DrawLine((int)vp[0].X, (int)vp[0].Y, (int)vp[1].X, (int)vp[1].Y, new ColorRGB(255, 255, 255));
+                        ctx.DrawLine((int)vp[1].X, (int)vp[1].Y, (int)vp[2].X, (int)vp[2].Y, new ColorRGB(255, 255, 255));
+                        ctx.DrawLine((int)vp[2].X, (int)vp[2].Y, (int)vp[0].X, (int)vp[0].Y, new ColorRGB(255, 255, 255));
+                    }
+                    else
+                    {
+                        fastRasterizer.Rasterize(vp, attribs, sampler);
+                        // simpleRasterizer.Rasterize(vp, attribs, sampler);
+                    }
                 }
 
                 sw.Stop();
@@ -92,7 +121,7 @@ namespace SoftRender.App
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
             {
-                var fps = (int)(iterations * 1000 / sw.ElapsedMilliseconds);
+                var fps = (int)(iterations * 1000 / System.Math.Max(1, sw.ElapsedMilliseconds));
                 var info = $"{sw.ElapsedMilliseconds} ms / {iterations} iterations = {fps} fps";
                 g.DrawString(info, SystemFonts.DefaultFont, Brushes.White, 10, 17);
             }
@@ -121,13 +150,14 @@ namespace SoftRender.App
 
         private void AnimationTimer_Tick(object sender, EventArgs e)
         {
-            var rot = Matrix2D.Rotate(0.1f);
-            pr.Translate(-p1.X, -p1.Y);
-            pr = rot * pr;
-            pr.Translate(p1.X, p1.Y);
-            p2 = pr.ToPoint();
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.01f) * Matrix4D.CreateTranslate(0, 0, 4);
 
-            Draw();
+            for (int i = 0; i < model.Vertices.Length; i++)
+            {
+                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
+            }
+
+            DrawArrays(model.Vertices, model.Attributes);
         }
 
         private ISampler LoadTexture(string filename)

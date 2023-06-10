@@ -64,6 +64,32 @@
                 0, 0, 0, 0);
         }
 
+        /// <summary>
+        /// Creates a new matrix that rotates vectors around the yaw (y) axis.
+        /// </summary>
+        /// <param name="angle">The angle in radians.</param>
+        /// <returns>The rotation matrix.</returns>
+        public static Matrix4D CreateFromYaw(float angle)
+        {
+            var cos = (float)System.Math.Cos(angle);
+            var sin = (float)System.Math.Sin(angle);
+
+            return new Matrix4D(
+                cos, 0.0f, sin, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                -sin, 0.0f, cos, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f);
+        }
+
+        public static Matrix4D CreateTranslate(float x, float y, float z)
+        {
+            return new Matrix4D(
+                1.0f, 0.0f, 0.0f, x,
+                0.0f, 1.0f, 0.0f, y,
+                0.0f, 0.0f, 1.0f, z,
+                0.0f, 0.0f, 0.0f, 1.0f);
+        }
+
         public static Matrix4D operator +(Matrix4D m1, Matrix4D m2)
         {
             float m11 = m1.M11 + m2.M11;
@@ -127,6 +153,15 @@
                 m.M21 * v.X + m.M22 * v.Y + m.M23 * v.Z + m.M24 * v.W,
                 m.M31 * v.X + m.M32 * v.Y + m.M33 * v.Z + m.M34 * v.W,
                 m.M41 * v.X + m.M42 * v.Y + m.M43 * v.Z + m.M44 * v.W);
+        }
+
+        public static Vector4D operator *(Matrix4D m, Vector3D v)
+        {
+            return new Vector4D(
+                m.M11 * v.X + m.M12 * v.Y + m.M13 * v.Z + m.M14,
+                m.M21 * v.X + m.M22 * v.Y + m.M23 * v.Z + m.M24,
+                m.M31 * v.X + m.M32 * v.Y + m.M33 * v.Z + m.M34,
+                m.M41 * v.X + m.M42 * v.Y + m.M43 * v.Z + m.M44);
         }
 
         public float GetDeterminant()

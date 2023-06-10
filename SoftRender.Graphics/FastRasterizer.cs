@@ -103,13 +103,13 @@ namespace SoftRender
             //var a1bs = Vector256.Create((float)attribs[1].B);
             //var a2bs = Vector256.Create((float)attribs[2].B);
 
-            var a0us = Vector256.Create(attribs[0].U);
-            var a1us = Vector256.Create(attribs[1].U);
-            var a2us = Vector256.Create(attribs[2].U);
+            var a0us = Vector256.Create(attribs[0].UV.X);
+            var a1us = Vector256.Create(attribs[1].UV.X);
+            var a2us = Vector256.Create(attribs[2].UV.X);
 
-            var a0vs = Vector256.Create(attribs[0].V);
-            var a1vs = Vector256.Create(attribs[1].V);
-            var a2vs = Vector256.Create(attribs[2].V);
+            var a0vs = Vector256.Create(attribs[0].UV.Y);
+            var a1vs = Vector256.Create(attribs[1].UV.Y);
+            var a2vs = Vector256.Create(attribs[2].UV.Y);
 
             var sampler = (NearestSampler)texture;
 

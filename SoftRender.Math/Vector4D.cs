@@ -1,4 +1,6 @@
-﻿namespace SoftRender.SRMath
+﻿using System.Diagnostics;
+
+namespace SoftRender.SRMath
 {
     // chat gpt
     public class Vector4D
@@ -45,19 +47,16 @@
             return new Vector4D(v.X / scalar, v.Y / scalar, v.Z / scalar, v.W / scalar);
         }
 
-        // Dot Product
         public static float Dot(Vector4D v1, Vector4D v2)
         {
             return v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z + v1.W * v2.W;
         }
 
-        // Magnitude (length) of the Vector
         public float Magnitude()
         {
             return (float)System.Math.Sqrt(X * X + Y * Y + Z * Z + W * W);
         }
 
-        // Normalization
         public Vector4D Normalize()
         {
             float magnitude = Magnitude();
@@ -69,5 +68,21 @@
 
             return new Vector4D(X / magnitude, Y / magnitude, Z / magnitude, W / magnitude);
         }
+
+        public Vector3D PerspectiveDivide()
+        {
+            Debug.Assert(W != 0);
+
+            if(W == 1)
+            {
+                return new Vector3D(X, Y, Z);
+            }
+            else
+            {
+                return new Vector3D(X / W, Y / W, Z / W);
+            }
+        }
+
+        public Vector3D Truncate() => new Vector3D(X, Y, Z);
     }
 }

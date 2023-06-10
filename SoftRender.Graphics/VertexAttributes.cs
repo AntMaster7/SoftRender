@@ -1,28 +1,25 @@
-﻿namespace SoftRender.Graphics
+﻿using SoftRender.SRMath;
+
+namespace SoftRender.Graphics
 {
     public class VertexAttributes
     {
         public float Z;
 
-        public int R;
-        public int G;
-        public int B;
+        public Vector2D UV;
 
-        public float U;
-        public float V;
+        public Vector3D Normal;
 
         public VertexAttributes()
         {
         }
 
-        public VertexAttributes(float z, int r, int g, int b, float u, float v)
+        public VertexAttributes(float z, float u, float v, float nx, float ny, float nz)
         {
             Z = z;
-            R = r;
-            G = g;
-            B = b;
-            U = u;
-            V = v;
+
+            UV = new Vector2D(u, v);
+            Normal = new Vector3D(nx, ny, nz);
         }
     }
 }

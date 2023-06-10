@@ -64,5 +64,10 @@
             }
             return new Vector3D(X / magnitude, Y / magnitude, Z / magnitude);
         }
+
+        public override string ToString()
+        {
+            return $"{X} {Y} {Z}";
+        }
     }
 }

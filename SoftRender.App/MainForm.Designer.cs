@@ -42,7 +42,6 @@
             renderPictureBox.Size = new Size(1024, 768);
             renderPictureBox.TabIndex = 0;
             renderPictureBox.TabStop = false;
-            renderPictureBox.SizeChanged += RenderPictureBox_SizeChanged;
             // 
             // animationTimer
             // 

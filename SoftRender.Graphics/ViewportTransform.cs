@@ -8,12 +8,14 @@ namespace SoftRender
         private int halfWidth;
         private int halfHeight;
         private int height;
+        private float aspect;
 
         public ViewportTransform(int width, int height)
         {
             this.height = height;
             halfWidth = width / 2;
             halfHeight = height / 2;
+            aspect = (float)width / height;
         }
 
         public static Vector3D operator *(ViewportTransform t, Vector3D v)

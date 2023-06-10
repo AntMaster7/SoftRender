@@ -42,8 +42,9 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void Sample(float u, float v, byte* rgb)
         {
-            var tx = (int)(u * w);
-            var ty = (int)(v * h);
+            // Mirrors x and y
+            var tx = System.Math.Abs((int)(u * w) % w);
+            var ty = System.Math.Abs((int)(v * h) % h);
 
             int offset = ty * stride + tx * 4;
 

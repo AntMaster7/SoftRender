@@ -92,8 +92,8 @@ namespace SoftRender
                         var b2pc = z / attribs[1].Z * b2;
                         var b3pc = 1 - b1pc - b2pc;
 
-                        var u = attribs[0].U * b1pc + attribs[1].U * b2pc + attribs[2].U * b3pc;
-                        var v = attribs[0].V * b1pc + attribs[1].V * b2pc + attribs[2].V * b3pc;
+                        var u = attribs[0].UV.X * b1pc + attribs[1].UV.X * b2pc + attribs[2].UV.X * b3pc;
+                        var v = attribs[0].UV.Y * b1pc + attribs[1].UV.Y * b2pc + attribs[2].UV.Y * b3pc;
 
                         var offset = y * stride + x * BytesPerPixel;
                         //*(framebuffer + offset + 2) = (byte)(attribs[0].R * b1pc + attribs[1].R * b2pc + attribs[2].R * b3pc);
@@ -101,7 +101,6 @@ namespace SoftRender
                         //*(framebuffer + offset + 0) = (byte)(attribs[0].B * b1pc + attribs[1].B * b2pc + attribs[2].B * b3pc);
 
                         sampler.Sample(u, v, framebuffer + offset);
-
                     }
 
                     f1 -= e1y;
