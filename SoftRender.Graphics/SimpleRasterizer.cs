@@ -1,9 +1,6 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
-using System.Diagnostics;
 using System.Drawing;
-using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace SoftRender
 {

@@ -30,20 +30,13 @@ namespace SoftRender.App
 
             model = ObjLoader.Load("Cube.obj");
 
-            model.Vertices = new Vector3D[]
-            {
-                new Vector3D(0.0f, 0.3f, 0f),
-                new Vector3D(-0.3f, -0.7f, 0f),
-                new Vector3D(0.7f, -0.7f, 0f)
-            };
-
             sampler = LoadTexture("brickwall-512x512.jpg");
             //sampler = LoadTexture("test.png");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            // animationTimer.Start();
+            animationTimer.Start();
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -94,22 +87,14 @@ namespace SoftRender.App
 
                 for (int i = 0; i < vertices.Length; i += 3)
                 {
-                    clipSpace[0] = frustum * vertices[i + 0];
-                    clipSpace[1] = frustum * vertices[i + 1];
-                    clipSpace[2] = frustum * vertices[i + 2];
-
-                    ndc[0] = clipSpace[0].PerspectiveDivide();
-                    ndc[1] = clipSpace[1].PerspectiveDivide();
-                    ndc[2] = clipSpace[2].PerspectiveDivide();
-
-                    vp[0] = viewportTransform * ndc[0];
-                    vp[1] = viewportTransform * ndc[1];
-                    vp[2] = viewportTransform * ndc[2];
-
-                    attribs[0] = attributes[i + 0];
-                    attribs[1] = attributes[i + 1];
-                    attribs[2] = attributes[i + 2];
-
+                    for (int j = 0; j < 3; j++)
+                    {
+                        clipSpace[j] = frustum * vertices[i + j];
+                        ndc[j] = clipSpace[j].PerspectiveDivide();
+                        vp[j] = viewportTransform * ndc[j];
+                        attribs[j] = attributes[i + j];
+                        attribs[j].Z = clipSpace[j].W;
+                    }
 
                     var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
 
@@ -137,31 +122,12 @@ namespace SoftRender.App
                 g.DrawString(info, SystemFonts.DefaultFont, Brushes.White, 10, 17);
             }
 
-            //var dimensions = new Point(700, 700);
-            //var rect = new Rectangle(w / 2 - dimensions.X / 2, h / 2 - dimensions.Y / 2, dimensions.X, dimensions.Y);
-            //for (int y = rect.Y; y < rect.Y + rect.Height; y++)
-            //{
-            //    for (int x = rect.X; x < rect.X + rect.Width; x++)
-            //    {
-            //        var u  = (float)(x - rect.X) / rect.Width;
-            //        var v = (float)(y - rect.Y) / rect.Height;
-
-            //        var color = sampler.Sample(u, v);
-
-            //        ctx.DrawPixel(x, y, color);
-            //    }
-            //}
-
-            //ctx.DrawLine(p1, p2, ColorRGB.FromSystemColor(Color.White));
-            //ctx.DrawLine(p2, p3, ColorRGB.FromSystemColor(Color.White));
-            //ctx.DrawLine(p3, p1, ColorRGB.FromSystemColor(Color.White));
-
             renderPictureBox.Invalidate();
         }
 
         private void AnimationTimer_Tick(object sender, EventArgs e)
         {
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.01f) * Matrix4D.CreateTranslate(0, 0, 4);
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.05f) * Matrix4D.CreateTranslate(0, 0, 4);
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {

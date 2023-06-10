@@ -87,9 +87,9 @@ namespace SoftRender
             var k = e3.Ys * Eights;
 
             var m = Vector256.Create((float)System.Math.Ceiling(aabb.Width / 8f));
-            var g = e1.Xs + (e1.Ys * m);
-            var h = e2.Xs + (e2.Ys * m);
-            var q = e3.Xs + (e3.Ys * m);
+            var g = e1.Xs + (e1.Ys * m * 8);
+            var h = e2.Xs + (e2.Ys * m * 8);
+            var q = e3.Xs + (e3.Ys * m * 8);
 
             //var a0rs = Vector256.Create((float)attribs[0].R);
             //var a1rs = Vector256.Create((float)attribs[1].R);
@@ -145,12 +145,14 @@ namespace SoftRender
                         var b3pc = Ones - b1pc - b2pc;
 
                         var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
+                        us = Avx.And(us, mask);
+
                         var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
+                        vs = Avx.And(vs, mask);
 
                         var offset = y * stride + x * BytesPerPixel;
 
-                        // sampler.Sample(us, vs, pixel);
-                        pixel.Rs = Vector256.Create(255);
+                        sampler.Sample(us, vs, pixel);
 
                         pixel.StoreInterleaved(framebuffer + offset, mask);
                     }
@@ -195,7 +197,7 @@ namespace SoftRender
                 }
             }
 
-            return sb.ToString(); // .Trim(new char[] { ' ', '|' });
+            return sb.ToString();
         }
     }
 }
