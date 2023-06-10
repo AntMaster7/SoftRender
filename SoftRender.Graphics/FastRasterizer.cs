@@ -86,11 +86,10 @@ namespace SoftRender
             var j = e2.Ys * Eights;
             var k = e3.Ys * Eights;
 
-            var aabbWidth = Vector256.Create((float)aabb.Width);
-
-            var g = e1.Xs + (e1.Ys * aabbWidth);
-            var h = e2.Xs + (e2.Ys * aabbWidth);
-            var q = e3.Xs + (e3.Ys * aabbWidth);
+            var m = Vector256.Create((float)System.Math.Ceiling(aabb.Width / 8f));
+            var g = e1.Xs + (e1.Ys * m);
+            var h = e2.Xs + (e2.Ys * m);
+            var q = e3.Xs + (e3.Ys * m);
 
             //var a0rs = Vector256.Create((float)attribs[0].R);
             //var a1rs = Vector256.Create((float)attribs[1].R);
@@ -150,7 +149,9 @@ namespace SoftRender
 
                         var offset = y * stride + x * BytesPerPixel;
 
-                        sampler.Sample(us, vs, pixel);
+                        // sampler.Sample(us, vs, pixel);
+
+                        pixel.Rs = Vector256.Create(255);
 
                         pixel.StoreInterleaved(framebuffer + offset, mask);
                     }
