@@ -140,6 +140,7 @@ namespace SoftRender
                         var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
                         var z = Ones / zInv; // Avx.Reciprocal(zInv);
 
+                        // Calculate perspective-correct barycentric coordinates
                         var b1pc = z / z1 * b1;
                         var b2pc = z / z2 * b2;
                         var b3pc = Ones - b1pc - b2pc;

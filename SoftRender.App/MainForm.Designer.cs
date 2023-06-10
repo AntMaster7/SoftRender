@@ -28,9 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
             renderPictureBox = new PictureBox();
-            animationTimer = new System.Windows.Forms.Timer(components);
             ((System.ComponentModel.ISupportInitialize)renderPictureBox).BeginInit();
             SuspendLayout();
             // 
@@ -42,11 +40,6 @@
             renderPictureBox.Size = new Size(1024, 768);
             renderPictureBox.TabIndex = 0;
             renderPictureBox.TabStop = false;
-            // 
-            // animationTimer
-            // 
-            animationTimer.Interval = 32;
-            animationTimer.Tick += AnimationTimer_Tick;
             // 
             // MainForm
             // 
@@ -66,6 +59,5 @@
         #endregion
 
         private PictureBox renderPictureBox;
-        private System.Windows.Forms.Timer animationTimer;
     }
 }

@@ -8,9 +8,14 @@ namespace SoftRender.App
 {
     public partial class MainForm : Form
     {
+        private const int TargetFrameRate = 60;
+        private const int MaxFrameTime = 200;
+
         private Bitmap bitmap;
         private ISampler sampler;
-
+        private Stopwatch tickStopWatch = new Stopwatch();
+        private int frameTimeAccumulator = 0;
+        
         //private Vector3D[] model = new Vector3D[]
         //{
         //    new Vector3D(0.0f, 0.3f, -1f),
@@ -36,7 +41,62 @@ namespace SoftRender.App
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            animationTimer.Start();
+            Application.Idle += Application_Idle;
+        }
+
+        private void Application_Idle(object? sender, EventArgs e)
+        {
+            while (!WinNative.PeekMessage(out WinNative.NativeMessage _, new HandleRef(this, Handle), 0, 0, 0))
+            {
+                Tick();
+            }
+        }
+
+        private void Tick()
+        {
+            if (!tickStopWatch.IsRunning)
+            {
+                tickStopWatch.Start();
+            }
+
+            var targetFrameTime = 1000 / TargetFrameRate;
+
+            var updated = false;
+
+            frameTimeAccumulator += tickStopWatch.Elapsed.Milliseconds;
+            if(frameTimeAccumulator > MaxFrameTime)
+            {
+                frameTimeAccumulator = MaxFrameTime;
+            }
+
+            while (frameTimeAccumulator >= targetFrameTime)
+            {
+                tickStopWatch.Restart();
+
+                Update(TimeSpan.FromMilliseconds(targetFrameTime));
+                frameTimeAccumulator -= targetFrameTime;
+
+                updated = true;
+            }
+
+            if (updated)
+            {
+                DrawArrays(model.Vertices, model.Attributes);
+            }
+        }
+
+        private void Update(TimeSpan delta)
+        {
+            const float AngularVelocity = 1f;
+
+            var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000; 
+
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 4);
+
+            for (int i = 0; i < model.Vertices.Length; i++)
+            {
+                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
+            }
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -66,8 +126,8 @@ namespace SoftRender.App
 
             var viewportTransform = new ViewportTransform(w, h);
 
-            int iterations = 1;
-            var sw = new Stopwatch();
+            int iterations = 100;
+            var frameTimer = new Stopwatch();
 
             bool wireframe = true;
 
@@ -78,13 +138,14 @@ namespace SoftRender.App
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
 
-                sw.Start();
-
                 var clipSpace = new Vector4D[3];
                 var ndc = new Vector3D[3];
                 var vp = new Vector3D[3];
                 var attribs = new VertexAttributes[3];
+ 
+                frameTimer.Start();
 
+                for (int iter = 0; iter < iterations; iter++)
                 for (int i = 0; i < vertices.Length; i += 3)
                 {
                     for (int j = 0; j < 3; j++)
@@ -93,7 +154,7 @@ namespace SoftRender.App
                         ndc[j] = clipSpace[j].PerspectiveDivide();
                         vp[j] = viewportTransform * ndc[j];
                         attribs[j] = attributes[i + j];
-                        attribs[j].Z = clipSpace[j].W;
+                        attribs[j].Z = clipSpace[j].W; // -ndc[j].Z;
                     }
 
                     var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
@@ -112,29 +173,17 @@ namespace SoftRender.App
                     }
                 }
 
-                sw.Stop();
+                frameTimer.Stop();
             }
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
             {
-                var fps = (int)(iterations * 1000 / System.Math.Max(1, sw.ElapsedMilliseconds));
-                var info = $"{sw.ElapsedMilliseconds} ms / {iterations} iterations = {fps} fps";
+                var fps = (int)(iterations * 1000 / System.Math.Max(1, frameTimer.ElapsedMilliseconds));
+                var info = $"{frameTimer.ElapsedMilliseconds} ms / {iterations} iterations = {fps} fps";
                 g.DrawString(info, SystemFonts.DefaultFont, Brushes.White, 10, 17);
             }
 
             renderPictureBox.Invalidate();
-        }
-
-        private void AnimationTimer_Tick(object sender, EventArgs e)
-        {
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.05f) * Matrix4D.CreateTranslate(0, 0, 4);
-
-            for (int i = 0; i < model.Vertices.Length; i++)
-            {
-                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
-            }
-
-            DrawArrays(model.Vertices, model.Attributes);
         }
 
         private ISampler LoadTexture(string filename)
