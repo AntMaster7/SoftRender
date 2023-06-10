@@ -30,6 +30,8 @@ namespace SoftRender
         /// </remarks>
         public float FarPlane;
 
+        public Vector3D Forward = new Vector3D(0, 0, -1);
+
         public Camera(float aspectRatio, float fieldOfView = 90, float nearPlane = 0.05f, float farPlane = 100f)
         {
             AspectRatio = aspectRatio;

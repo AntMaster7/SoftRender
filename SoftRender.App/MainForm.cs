@@ -30,13 +30,20 @@ namespace SoftRender.App
 
             model = ObjLoader.Load("Cube.obj");
 
+            model.Vertices = new Vector3D[]
+            {
+                new Vector3D(0.0f, 0.3f, 0f),
+                new Vector3D(-0.3f, -0.7f, 0f),
+                new Vector3D(0.7f, -0.7f, 0f)
+            };
+
             sampler = LoadTexture("brickwall-512x512.jpg");
             //sampler = LoadTexture("test.png");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            animationTimer.Start();
+            // animationTimer.Start();
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -103,16 +110,20 @@ namespace SoftRender.App
                     attribs[1] = attributes[i + 1];
                     attribs[2] = attributes[i + 2];
 
-                    if (wireframe)
-                    {
-                        ctx.DrawLine((int)vp[0].X, (int)vp[0].Y, (int)vp[1].X, (int)vp[1].Y, new ColorRGB(255, 255, 255));
-                        ctx.DrawLine((int)vp[1].X, (int)vp[1].Y, (int)vp[2].X, (int)vp[2].Y, new ColorRGB(255, 255, 255));
-                        ctx.DrawLine((int)vp[2].X, (int)vp[2].Y, (int)vp[0].X, (int)vp[0].Y, new ColorRGB(255, 255, 255));
-                    }
-                    else
+
+                    var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
+
+                    if (Vector3D.DotProduct(normal, vertices[i] - new Vector3D(0, 0, 0)) < 0)
                     {
                         fastRasterizer.Rasterize(vp, attribs, sampler);
                         // simpleRasterizer.Rasterize(vp, attribs, sampler);
+
+                        if (wireframe)
+                        {
+                            ctx.DrawLine((int)vp[0].X, (int)vp[0].Y, (int)vp[1].X, (int)vp[1].Y, new ColorRGB(255, 255, 255));
+                            ctx.DrawLine((int)vp[1].X, (int)vp[1].Y, (int)vp[2].X, (int)vp[2].Y, new ColorRGB(255, 255, 255));
+                            ctx.DrawLine((int)vp[2].X, (int)vp[2].Y, (int)vp[0].X, (int)vp[0].Y, new ColorRGB(255, 255, 255));
+                        }
                     }
                 }
 

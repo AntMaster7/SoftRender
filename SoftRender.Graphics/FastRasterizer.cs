@@ -150,7 +150,6 @@ namespace SoftRender
                         var offset = y * stride + x * BytesPerPixel;
 
                         // sampler.Sample(us, vs, pixel);
-
                         pixel.Rs = Vector256.Create(255);
 
                         pixel.StoreInterleaved(framebuffer + offset, mask);
