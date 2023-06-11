@@ -15,17 +15,6 @@ namespace SoftRender.App
         private ISampler sampler;
         private Stopwatch tickStopWatch = new Stopwatch();
         private int frameTimeAccumulator = 0;
-        
-        //private Vector3D[] model = new Vector3D[]
-        //{
-        //    new Vector3D(0.0f, 0.3f, -1f),
-        //    new Vector3D(-0.3f, -0.7f, -1f),
-        //    new Vector3D(0.7f, -0.7f, -1f)
-
-        //    //new Vector3D(1.0f, 1.0f, 1f),
-        //    //new Vector3D(-1.0f, 1.0f,1f),
-        //    //new Vector3D(-1.0f, -1.0f, 1f)
-        //};
 
         private Model model;
 
@@ -42,6 +31,18 @@ namespace SoftRender.App
             renderPictureBox.Image = bitmap;
 
             Application.Idle += Application_Idle;
+        }
+
+        private void Main_Load(object sender, EventArgs e)
+        {
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(1f);
+
+            for (int i = 0; i < model.Vertices.Length; i++)
+            {
+                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
+            }
+
+            DrawArrays(model.Vertices, model.Attributes);
         }
 
         private void Application_Idle(object? sender, EventArgs e)
@@ -64,7 +65,7 @@ namespace SoftRender.App
             var updated = false;
 
             frameTimeAccumulator += tickStopWatch.Elapsed.Milliseconds;
-            if(frameTimeAccumulator > MaxFrameTime)
+            if (frameTimeAccumulator > MaxFrameTime)
             {
                 frameTimeAccumulator = MaxFrameTime;
             }
@@ -89,7 +90,7 @@ namespace SoftRender.App
         {
             const float AngularVelocity = 1f;
 
-            var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000; 
+            var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
             var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 4);
 
@@ -97,18 +98,6 @@ namespace SoftRender.App
             {
                 model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
             }
-        }
-
-        private void Main_Load(object sender, EventArgs e)
-        {
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(1f);
-
-            for (int i = 0; i < model.Vertices.Length; i++)
-            {
-                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
-            }
-
-            DrawArrays(model.Vertices, model.Attributes);
         }
 
         private unsafe void DrawArrays(Vector3D[] vertices, VertexAttributes[] attributes)
@@ -124,51 +113,46 @@ namespace SoftRender.App
             var camera = new Camera((float)w / h);
             var frustum = camera.CreateProjectionMatrix();
 
-            var viewportTransform = new ViewportTransform(w, h);
+            var vpt = new ViewportTransform(w, h);
 
             int iterations = 100;
             var frameTimer = new Stopwatch();
-
-            bool wireframe = true;
 
             using (var ctx = new BitmapContext(bitmap))
             {
                 ctx.Clear(0);
 
-                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride);
-                var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride);
+                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, vpt);
+                fastRasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
+
+                var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
                 var clipSpace = new Vector4D[3];
-                var ndc = new Vector3D[3];
-                var vp = new Vector3D[3];
                 var attribs = new VertexAttributes[3];
- 
+
                 frameTimer.Start();
 
+                var opts = new ParallelOptions 
+                { 
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                };
+                //Parallel.For(0, 100, opts, (iter) =>
+                //Task.Factory.StartNew(() =>
                 for (int iter = 0; iter < iterations; iter++)
-                for (int i = 0; i < vertices.Length; i += 3)
                 {
-                    for (int j = 0; j < 3; j++)
+                    for (int i = 0; i < vertices.Length; i += 3)
                     {
-                        clipSpace[j] = frustum * vertices[i + j];
-                        ndc[j] = clipSpace[j].PerspectiveDivide();
-                        vp[j] = viewportTransform * ndc[j];
-                        attribs[j] = attributes[i + j];
-                        attribs[j].Z = clipSpace[j].W; // -ndc[j].Z;
-                    }
-
-                    var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
-
-                    if (Vector3D.DotProduct(normal, vertices[i] - new Vector3D(0, 0, 0)) < 0)
-                    {
-                        fastRasterizer.Rasterize(vp, attribs, sampler);
-                        // simpleRasterizer.Rasterize(vp, attribs, sampler);
-
-                        if (wireframe)
+                        for (int j = 0; j < 3; j++)
                         {
-                            ctx.DrawLine((int)vp[0].X, (int)vp[0].Y, (int)vp[1].X, (int)vp[1].Y, new ColorRGB(255, 255, 255));
-                            ctx.DrawLine((int)vp[1].X, (int)vp[1].Y, (int)vp[2].X, (int)vp[2].Y, new ColorRGB(255, 255, 255));
-                            ctx.DrawLine((int)vp[2].X, (int)vp[2].Y, (int)vp[0].X, (int)vp[0].Y, new ColorRGB(255, 255, 255));
+                            clipSpace[j] = frustum * vertices[i + j];
+                            attribs[j] = attributes[i + j];
+                        }
+
+                        var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
+
+                        if (Vector3D.DotProduct(normal, vertices[i] - new Vector3D(0, 0, 0)) < 0)
+                        {
+                            fastRasterizer.Rasterize(clipSpace, attribs, sampler);
                         }
                     }
                 }

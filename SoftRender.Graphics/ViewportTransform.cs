@@ -1,29 +1,28 @@
 ﻿using SoftRender.SRMath;
-using System.Drawing;
 
 namespace SoftRender
 {
+    /// <summary>
+    /// Implements the transformation from normalized device coordinates to screen coordinates.
+    /// This class performs better for the viewport transform than a general purpose 4x4 matrix.
+    /// </summary>
     public class ViewportTransform
     {
         private int halfWidth;
         private int halfHeight;
-        private int height;
-        private float aspect;
 
         public ViewportTransform(int width, int height)
         {
-            this.height = height;
             halfWidth = width / 2;
             halfHeight = height / 2;
-            aspect = (float)width / height;
         }
 
-        public static Vector3D operator *(ViewportTransform t, Vector3D v)
+        public static Vector2D operator *(ViewportTransform t, Vector3D ndc)
         {
-            int x = (int)(v.X * t.halfWidth + t.halfWidth);
-            int y = t.height - (int)(v.Y * t.halfHeight + t.halfHeight);
+            int x = (int)(ndc.X * t.halfWidth + t.halfWidth + 0.5);
+            int y = (int)(-ndc.Y * t.halfHeight + t.halfHeight + 0.5);
 
-            return new Vector3D(x, y, v.Z);
+            return new Vector2D(x, y);
         }
     }
 }

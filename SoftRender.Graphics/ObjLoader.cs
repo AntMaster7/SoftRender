@@ -88,7 +88,7 @@ namespace SoftRender.Graphics
             var attribs = new VertexAttributes[vertices.Count];
             for (int i = 0; i < attribs.Count(); i++)
             {
-                attribs[i] = new VertexAttributes(0, uvs[i].X, uvs[i].Y, normals[i].X, normals[i].Y, normals[i].Z);
+                attribs[i] = new VertexAttributes(uvs[i].X, uvs[i].Y, normals[i].X, normals[i].Y, normals[i].Z);
             }
 
             return new Model()

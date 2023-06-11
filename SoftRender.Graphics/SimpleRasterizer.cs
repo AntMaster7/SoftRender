@@ -8,15 +8,15 @@ namespace SoftRender
     {
         private const byte BytesPerPixel = 3;
 
-        public int Dummy = 0;
-
         private readonly byte* framebuffer;
         private readonly int stride;
+        private readonly ViewportTransform vpt;
 
-        public SimpleRasterizer(byte* framebuffer, int stride)
+        public SimpleRasterizer(byte* framebuffer, int stride, ViewportTransform vpt)
         {
             this.framebuffer = framebuffer;
             this.stride = stride;
+            this.vpt = vpt;
         }
 
         public unsafe void DrawTexture(ISampler texture, Rectangle screen)
@@ -38,25 +38,34 @@ namespace SoftRender
             }
         }
 
-        public unsafe void Rasterize(Vector3D[] face, VertexAttributes[] attribs, ISampler texture)
+        public unsafe void Rasterize(Vector4D[] clipSpaceTriangle, VertexAttributes[] attribs, ISampler texture)
         {
-            var l = System.Math.Min(System.Math.Min(face[0].X, face[1].X), face[2].X);
-            var r = System.Math.Max(System.Math.Max(face[0].X, face[1].X), face[2].X);
-            var t = System.Math.Min(System.Math.Min(face[0].Y, face[1].Y), face[2].Y);
-            var b = System.Math.Max(System.Math.Max(face[0].Y, face[1].Y), face[2].Y);
+            var screenTriangle = new Vector2D[3];
+            var ndcTriangle = new Vector3D[3];
+
+            for (int index = 0; index < 3; index++)
+            {
+                ndcTriangle[index] = clipSpaceTriangle[index].PerspectiveDivide();
+                screenTriangle[0] = vpt * ndcTriangle[index];
+            }
+
+            var l = System.Math.Min(System.Math.Min(clipSpaceTriangle[0].X, clipSpaceTriangle[1].X), clipSpaceTriangle[2].X);
+            var r = System.Math.Max(System.Math.Max(clipSpaceTriangle[0].X, clipSpaceTriangle[1].X), clipSpaceTriangle[2].X);
+            var t = System.Math.Min(System.Math.Min(clipSpaceTriangle[0].Y, clipSpaceTriangle[1].Y), clipSpaceTriangle[2].Y);
+            var b = System.Math.Max(System.Math.Max(clipSpaceTriangle[0].Y, clipSpaceTriangle[1].Y), clipSpaceTriangle[2].Y);
 
             var aabb = new Rectangle((int)l, (int)t, (int)(r - l), (int)(b - t));
 
-            var e1x = (int)-(face[1].X - face[0].X);
-            var e2x = (int)-(face[2].X - face[1].X);
-            var e3x = (int)-(face[0].X - face[2].X);
-            var e1y = (int)-(face[1].Y - face[0].Y);
-            var e2y = (int)-(face[2].Y - face[1].Y);
-            var e3y = (int)-(face[0].Y - face[2].Y);
+            var e1x = (int)-(clipSpaceTriangle[1].X - clipSpaceTriangle[0].X);
+            var e2x = (int)-(clipSpaceTriangle[2].X - clipSpaceTriangle[1].X);
+            var e3x = (int)-(clipSpaceTriangle[0].X - clipSpaceTriangle[2].X);
+            var e1y = (int)-(clipSpaceTriangle[1].Y - clipSpaceTriangle[0].Y);
+            var e2y = (int)-(clipSpaceTriangle[2].Y - clipSpaceTriangle[1].Y);
+            var e3y = (int)-(clipSpaceTriangle[0].Y - clipSpaceTriangle[2].Y);
 
-            var f1 = (int)(e1x * (aabb.Y - face[0].Y) - e1y * (aabb.X - face[0].X));
-            var f2 = (int)(e2x * (aabb.Y - face[1].Y) - e2y * (aabb.X - face[1].X));
-            var f3 = (int)(e3x * (aabb.Y - face[2].Y) - e3y * (aabb.X - face[2].X));
+            var f1 = (int)(e1x * (aabb.Y - clipSpaceTriangle[0].Y) - e1y * (aabb.X - clipSpaceTriangle[0].X));
+            var f2 = (int)(e2x * (aabb.Y - clipSpaceTriangle[1].Y) - e2y * (aabb.X - clipSpaceTriangle[1].X));
+            var f3 = (int)(e3x * (aabb.Y - clipSpaceTriangle[2].Y) - e3y * (aabb.X - clipSpaceTriangle[2].X));
 
             float negativeAreaTimesTwo = -e2y * e1x + e2x * e1y; // perp dot product
 
@@ -78,15 +87,15 @@ namespace SoftRender
                         var b2 = f3 / negativeAreaTimesTwo;
                         var b3 = 1 - b1 - b2;
 
-                        var z1Inv = 1 / attribs[0].Z;
-                        var z2Inv = 1 / attribs[1].Z;
-                        var z3Inv = 1 / attribs[2].Z;
+                        var z1Inv = 1 / clipSpaceTriangle[0].Z;
+                        var z2Inv = 1 / clipSpaceTriangle[1].Z;
+                        var z3Inv = 1 / clipSpaceTriangle[2].Z;
 
                         var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
                         var z = 1 / zInv;
 
-                        var b1pc = z / attribs[0].Z * b1;
-                        var b2pc = z / attribs[1].Z * b2;
+                        var b1pc = z / clipSpaceTriangle[0].Z * b1;
+                        var b2pc = z / clipSpaceTriangle[1].Z * b2;
                         var b3pc = 1 - b1pc - b2pc;
 
                         var u = attribs[0].UV.X * b1pc + attribs[1].UV.X * b2pc + attribs[2].UV.X * b3pc;
