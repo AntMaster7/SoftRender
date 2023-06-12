@@ -25,12 +25,11 @@ namespace SoftRender.App
             model = MeshLoader.Load("Suzanne.obj");
 
             sampler = LoadTexture("brickwall-512x512.jpg");
-            //sampler = LoadTexture("test.png");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            // Application.Idle += Application_Idle;
+            Application.Idle += Application_Idle;
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -115,7 +114,7 @@ namespace SoftRender.App
 
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 100;
+            int iterations = 1;
             var frameTimer = new Stopwatch();
 
             var vertexShader = new VertexShader();
@@ -126,7 +125,7 @@ namespace SoftRender.App
             {
                 ctx.Clear(0);
 
-                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, vpt);
+                var fastRasterizer = new FastRasterizer(ctx.Scan0, new Size(w, h), vpt);
                 fastRasterizer.Mode = RasterizerMode.Fill;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);

@@ -71,9 +71,12 @@ namespace SoftRender.SRMath
 
         public Vector3D PerspectiveDivide()
         {
-            Debug.Assert(W != 0);
-
-            if(W == 1)
+            //Debug.Assert(W != 0);
+            if(W == 0) // TODO: Why does this even happen?
+            {
+                return new Vector3D(0, 0, 0);
+            }
+            else if(W == 1)
             {
                 return new Vector3D(X, Y, Z);
             }
