@@ -1,5 +1,7 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
+using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -18,7 +20,6 @@ namespace SoftRender
     internal struct RasterizerContextPacket
     {
         private static readonly Vector256<float> Eights = Vector256.Create((float)8);
-        private static readonly Vector256<float> Zeros = Vector256<float>.Zero;
 
         private Vector256<float> e1x;
         private Vector256<float> e2x;
@@ -73,9 +74,9 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<float> GetInsideMask()
         {
-            var inside = Vector256.GreaterThanOrEqual(Function1, Zeros);
-            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, Zeros));
-            return Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, Zeros));
+            var inside = Vector256.GreaterThanOrEqual(Function1, FastRasterizer.Zeros);
+            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, FastRasterizer.Zeros));
+            return Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, FastRasterizer.Zeros));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -99,14 +100,17 @@ namespace SoftRender
     {
         private const byte BytesPerPixel = 3;
 
-        private static readonly Vector256<float> Zeros = Vector256<float>.Zero;
-        private static readonly Vector256<float> Ones = Vector256.Create(1f);
+        internal static readonly Vector256<float> Zeros = Vector256<float>.Zero;
+        internal static readonly Vector256<float> Ones = Vector256.Create(1f);
+        internal static readonly Vector256<float> MaxColor = Vector256.Create(255f);
 
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int stride;
 
-        public RasterizerMode Mode; 
+        public RasterizerMode Mode;
+
+        public Vector3D[] Normals = new Vector3D[3];
 
         public FastRasterizer(byte* framebuffer, int stride, ViewportTransform vpt)
         {
@@ -119,9 +123,9 @@ namespace SoftRender
         /// 
         /// </summary>
         /// <param name="face">Face with viewport coordinates.</param>
-        public unsafe void Rasterize(Vector4D[] triangle, VertexAttributes[] attribs, ISampler texture)
+        public unsafe void Rasterize(ReadOnlySpan<Vector4D> triangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
         {
-            // Transform vertices into ndc and then into screen space
+            // First transform vertices into ndc and then into screen space
             var ndcTriangle = new Vector3D[3];
             var screenTriangle = new Vector2D[3];
             for (int index = 0; index < 3; index++)
@@ -130,7 +134,7 @@ namespace SoftRender
                 screenTriangle[index] = vpt * ndcTriangle[index];
             }
 
-            if((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
+            if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
             {
                 FillTriangle(triangle, screenTriangle, attribs, texture);
             }
@@ -143,7 +147,7 @@ namespace SoftRender
             }
         }
 
-        private void FillTriangle(Vector4D[] clipSpaceTriangle, Vector2D[] screenTriangle, VertexAttributes[] attribs, ISampler texture)
+        private void FillTriangle(ReadOnlySpan<Vector4D> clipSpaceTriangle, Vector2D[] screenTriangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
         {
             // Gets axis-aligned bounding box for our triangle (brute force approach)
             var left = System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
@@ -158,6 +162,17 @@ namespace SoftRender
 
             var context = new RasterizerContextPacket(aabb, v1, v2, v3);
 
+            // Check for degenerate triangle with zero area
+            if (Vector256.EqualsAny(Zeros, context.NegativeAreaTimesTwo))
+            {
+                return;
+            }
+
+            // Get light directions
+            var a0ld = new Vector3DPacket(attribs[0].LightDirection.X, attribs[0].LightDirection.Y, attribs[0].LightDirection.Z);
+            var a1ld = new Vector3DPacket(attribs[1].LightDirection.X, attribs[1].LightDirection.Y, attribs[1].LightDirection.Z);
+            var a2ld = new Vector3DPacket(attribs[2].LightDirection.X, attribs[2].LightDirection.Y, attribs[2].LightDirection.Z);
+
             // Get texture coordinates for later interpolation
             var a0us = Vector256.Create(attribs[0].UV.X);
             var a0vs = Vector256.Create(attribs[0].UV.Y);
@@ -169,6 +184,8 @@ namespace SoftRender
             var sampler = (NearestSampler)texture;
 
             var pixel = new PixelPacket();
+
+            Vector3DPacket p = new Vector3DPacket();
 
             for (int y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
@@ -196,7 +213,8 @@ namespace SoftRender
                         // Calculate perspective-correct barycentric coordinates
                         var b1pc = z / z1 * b1;
                         var b2pc = z / z2 * b2;
-                        var b3pc = Ones - b1pc - b2pc;
+                        var b3pc = Avx.Subtract(Ones, b1pc);
+                        b3pc = Avx.Subtract(b3pc, b2pc);
 
                         // Interpolate texture coordinates
                         var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
@@ -207,6 +225,43 @@ namespace SoftRender
                         // Sample texture and render pixel
                         var offset = y * stride + x * BytesPerPixel;
                         sampler.Sample(us, vs, pixel);
+
+                        float ambientLightIntensity = 0.3f;
+
+                        var rsdiffuse = Avx.ConvertToVector256Single(pixel.Rs);
+                        var gsdiffuse = Avx.ConvertToVector256Single(pixel.Gs);
+                        var bsdiffuse = Avx.ConvertToVector256Single(pixel.Bs);
+
+                        var rsambient = rsdiffuse * ambientLightIntensity;
+                        var gsambient = gsdiffuse * ambientLightIntensity;
+                        var bsambient = bsdiffuse * ambientLightIntensity;
+                        
+                        p.Xs = a0ld.Xs * b1pc + a1ld.Xs * b2pc + a2ld.Xs * b3pc;
+                        p.Ys = a0ld.Ys * b1pc + a1ld.Ys * b2pc + a2ld.Ys * b3pc;
+                        p.Zs = a0ld.Zs * b1pc + a1ld.Zs * b2pc + a2ld.Zs * b3pc;
+
+                        var sqrt = Avx.Sqrt(p.Xs * p.Xs + p.Ys * p.Ys + p.Zs * p.Zs);
+                        p.Xs /= sqrt;
+                        p.Ys /= sqrt;
+                        p.Zs /= sqrt;
+
+                        var illum = Vector256.Create(0.9f);
+
+                        var nx = Vector256.Create(Normals[0].X);
+                        var ny = Vector256.Create(Normals[0].Y);
+                        var nz = Vector256.Create(Normals[0].Z);
+
+                        var dot = p.Xs * nx + p.Ys * ny + p.Zs * nz;
+                        dot = Avx.Max(dot, Zeros);
+
+                        var rsdirect = rsdiffuse * illum * dot;
+                        var gsdirect = gsdiffuse * illum * dot;
+                        var bsdirect = bsdiffuse * illum * dot;
+
+                        pixel.Rs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, rsambient + rsdirect));
+                        pixel.Gs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, gsambient + gsdirect));
+                        pixel.Bs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, bsambient + bsdirect));
+
                         pixel.StoreInterleaved(framebuffer + offset, mask);
                     }
 

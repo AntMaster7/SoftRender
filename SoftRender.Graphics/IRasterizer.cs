@@ -5,6 +5,6 @@ namespace SoftRender
 {
     public interface IRasterizer
     {
-        void Rasterize(Vector4D[] triangle, VertexAttributes[] attribs, ISampler texture);
+        void Rasterize(ReadOnlySpan<Vector4D> triangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture);
     }
 }

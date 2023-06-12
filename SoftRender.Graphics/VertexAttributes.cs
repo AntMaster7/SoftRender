@@ -2,11 +2,13 @@
 
 namespace SoftRender.Graphics
 {
-    public class VertexAttributes
+    public struct VertexAttributes
     {
         public Vector2D UV;
 
         public Vector3D Normal;
+
+        public Vector3D LightDirection;
 
         public VertexAttributes()
         {

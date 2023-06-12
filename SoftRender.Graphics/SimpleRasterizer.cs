@@ -119,5 +119,10 @@ namespace SoftRender
                 f3 += k;
             }
         }
+
+        public void Rasterize(ReadOnlySpan<Vector4D> triangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

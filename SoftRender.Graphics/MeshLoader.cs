@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace SoftRender.Graphics
 {
-    public class ObjLoader
+    public class MeshLoader
     {
         /// <summary>
         /// Loads an obj file and returns a vertex array with faces oriented counter clockwise.
@@ -70,8 +70,33 @@ namespace SoftRender.Graphics
                     {
                         var indices = parts[i].Split('/');
 
+                        if (i == 4)
+                        {
+                            // Add vertex 1 and 3 to triangulate quads
+                            // TODO: This code is bad
+                            vertices.Add(tempVertices[int.Parse(parts[1].Split('/')[0]) - 1]);
+                            vertices.Add(tempVertices[int.Parse(parts[3].Split('/')[0]) - 1]);
+                            if (parts[1].Split('/').Length > 1 && parts[1].Split('/')[1] != "")
+                            {
+                                uvs.Add(tempUVs[int.Parse(parts[1].Split('/')[1]) - 1]);
+                            }
+                            if (parts[3].Split('/').Length > 1 && parts[3].Split('/')[1] != "")
+                            {
+                                uvs.Add(tempUVs[int.Parse(parts[3].Split('/')[1]) - 1]);
+                            }
+                            if (parts[1].Split('/').Length > 2 && parts[1].Split('/')[2] != "")
+                            {
+                                normals.Add(tempNormals[int.Parse(parts[1].Split('/')[2]) - 1]);
+                            }
+                            if (parts[3].Split('/').Length > 2 && parts[3].Split('/')[2] != "")
+                            {
+                                normals.Add(tempNormals[int.Parse(parts[3].Split('/')[2]) - 1]);
+                            }
+                        }
+
                         // Add the indexed attributes to the final lists
                         vertices.Add(tempVertices[int.Parse(indices[0]) - 1]);
+
                         if (indices.Length > 1 && indices[1] != "")
                         {
                             uvs.Add(tempUVs[int.Parse(indices[1]) - 1]);
@@ -79,7 +104,6 @@ namespace SoftRender.Graphics
                         if (indices.Length > 2 && indices[2] != "")
                         {
                             normals.Add(tempNormals[int.Parse(indices[2]) - 1]);
-
                         };
                     }
                 }

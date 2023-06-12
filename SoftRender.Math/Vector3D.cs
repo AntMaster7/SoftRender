@@ -1,6 +1,6 @@
 ﻿namespace SoftRender.SRMath
 {
-    public class Vector3D
+    public struct Vector3D
     {
         public float X;
         public float Y;

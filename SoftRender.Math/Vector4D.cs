@@ -3,7 +3,7 @@
 namespace SoftRender.SRMath
 {
     // chat gpt
-    public class Vector4D
+    public struct Vector4D
     {
         public float X;
         public float Y;

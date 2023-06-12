@@ -22,7 +22,7 @@ namespace SoftRender.App
         {
             InitializeComponent();
 
-            model = ObjLoader.Load("Cube.obj");
+            model = MeshLoader.Load("Suzanne.obj");
 
             sampler = LoadTexture("brickwall-512x512.jpg");
             //sampler = LoadTexture("test.png");
@@ -30,12 +30,12 @@ namespace SoftRender.App
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
-            Application.Idle += Application_Idle;
+            // Application.Idle += Application_Idle;
         }
 
         private void Main_Load(object sender, EventArgs e)
         {
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(1f);
+            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(0f);
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {
@@ -92,7 +92,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 4);
+            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 2);
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {
@@ -118,42 +118,63 @@ namespace SoftRender.App
             int iterations = 100;
             var frameTimer = new Stopwatch();
 
+            var vertexShader = new VertexShader();
+            vertexShader.ProjectionMatrix = frustum;
+            vertexShader.LightSource = new Vector3D(3, 0, -1);
+
             using (var ctx = new BitmapContext(bitmap))
             {
                 ctx.Clear(0);
 
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, vpt);
-                fastRasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
+                fastRasterizer.Mode = RasterizerMode.Fill;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
-                var clipSpace = new Vector4D[3];
-                var attribs = new VertexAttributes[3];
+                //var clipSpace = new Vector4D[3];
+                //var attribs = new VertexAttributes[3];
 
-                frameTimer.Start();
-
-                var opts = new ParallelOptions 
-                { 
-                    MaxDegreeOfParallelism = Environment.ProcessorCount
-                };
-                //Parallel.For(0, 100, opts, (iter) =>
-                //Task.Factory.StartNew(() =>
-                for (int iter = 0; iter < iterations; iter++)
+                var opts = new ParallelOptions
                 {
-                    for (int i = 0; i < vertices.Length; i += 3)
+                    MaxDegreeOfParallelism = 4,
+                };
+
+                Span<Vector4D> cs = new Vector4D[vertices.Length];
+                Span<VertexAttributes> at = new VertexAttributes[vertices.Length];
+                Span<Vector3D> ns = new Vector3D[vertices.Length];
+
+                // Parallel.For(0, 100, opts, (iter) =>
+                // Task.Factory.StartNew(() =>
+                for (int i = 0; i < vertices.Length; i += 3)
+                {
+                    var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
+
+                    if (Vector3D.DotProduct(normal, vertices[i]) < 0)
                     {
                         for (int j = 0; j < 3; j++)
                         {
-                            clipSpace[j] = frustum * vertices[i + j];
-                            attribs[j] = attributes[i + j];
+                            var vertexShaderOutput = vertexShader.Run(vertices[i + j]);
+
+                            // attribs[j] = attributes[i + j];
+                            // attribs[j].LightDirection = vertexShaderOutput.LightDirection;
+
+                            cs[i + j] = vertexShaderOutput.OutputVertex;
+                            at[i + j] = attributes[i + j];
+                            at[i + j].LightDirection = vertexShaderOutput.LightDirection;
                         }
 
-                        var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
+                        ns[i] = normal.Normalize();
+                    }
+                }
 
-                        if (Vector3D.DotProduct(normal, vertices[i] - new Vector3D(0, 0, 0)) < 0)
-                        {
-                            fastRasterizer.Rasterize(clipSpace, attribs, sampler);
-                        }
+                frameTimer.Start();
+
+                for (int iter = 0; iter < iterations; iter++)
+                {
+                    for (int i = 0; i < cs.Length; i += 3)
+                    {
+                        fastRasterizer.Normals[0] = ns[i];
+                        fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
                     }
                 }
 
