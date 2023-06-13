@@ -113,12 +113,12 @@ namespace SoftRender
 
         public Vector3D[] Normals = new Vector3D[3];
 
-        public FastRasterizer(byte* framebuffer, Size size, ViewportTransform vpt)
+        public FastRasterizer(byte* framebuffer, int stride, Size size, ViewportTransform vpt)
         {
             this.framebuffer = framebuffer;
             this.vpt = vpt;
 
-            frameBufferStride = size.Width * BytesPerPixel;
+            frameBufferStride = stride;
 
             var zBufferSize = size.Width * size.Height;
             zBuffer = (float*)Marshal.AllocHGlobal(zBufferSize * sizeof(float));

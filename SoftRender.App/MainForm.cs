@@ -24,11 +24,27 @@ namespace SoftRender.App
 
             model = MeshLoader.Load("Suzanne.obj");
 
+            //model = new Model();
+
+            //model.Vertices = new Vector3D[3]
+            //{
+            //    new Vector3D(0f, 0.5f, 0f),
+            //    new Vector3D(-0.5f, -0.5f, 0f),
+            //    new Vector3D(0.5f, -0.5f, 0f),
+            //};
+
+            //model.Attributes = new VertexAttributes[3]
+            //{
+            //    new VertexAttributes(0.5f, 1, 0,0, 1),
+            //    new VertexAttributes(0f, 0f, 0,0, 1),
+            //    new VertexAttributes(1f, 0, 0,0, 1)
+            //};
+
             sampler = LoadTexture("brickwall-512x512.jpg");
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
-
+            
             Application.Idle += Application_Idle;
         }
 
@@ -87,7 +103,7 @@ namespace SoftRender.App
 
         private void Update(TimeSpan delta)
         {
-            const float AngularVelocity = 1f;
+            const float AngularVelocity = 0.2f;
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
@@ -114,7 +130,7 @@ namespace SoftRender.App
 
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 1;
+            int iterations = 100;
             var frameTimer = new Stopwatch();
 
             var vertexShader = new VertexShader();
@@ -125,8 +141,8 @@ namespace SoftRender.App
             {
                 ctx.Clear(0);
 
-                var fastRasterizer = new FastRasterizer(ctx.Scan0, new Size(w, h), vpt);
-                fastRasterizer.Mode = RasterizerMode.Fill;
+                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
+                fastRasterizer.Mode = RasterizerMode.Wireframe;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
