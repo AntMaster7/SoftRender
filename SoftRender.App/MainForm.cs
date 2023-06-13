@@ -109,7 +109,7 @@ namespace SoftRender.App
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {
-                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
+                // model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
             }
         }
 
@@ -128,7 +128,7 @@ namespace SoftRender.App
 
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 10;
+            int iterations = 100;
             var frameTimer = new Stopwatch();
 
             var vertexShader = new VertexShader();

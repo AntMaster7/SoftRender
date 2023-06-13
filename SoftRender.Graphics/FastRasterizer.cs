@@ -87,6 +87,14 @@ namespace SoftRender
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void IncrementX(int fac)
+        {
+            Function1 -= e1x * fac;
+            Function2 -= e2x * fac;
+            Function3 -= e3x * fac;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetXAndIncrementY()
         {
             Function1 += e1y;
@@ -216,95 +224,118 @@ namespace SoftRender
 
             Vector3DPacket p = new Vector3DPacket();
 
+            bool enter;
+            bool exit;
+
             for (int y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
+                enter = false;
+                exit = false;
+
                 for (int x = aabb.X; x < aabb.X + aabb.Width; x += 8)
                 {
-                    var insideMask = context.GetInsideMask();
-
-                    if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
+                    if (!exit)
                     {
-                        // Calculate barycentric coordinates
-                        var b1 = context.Function2 / context.NegativeAreaTimesTwo;
-                        var b2 = context.Function3 / context.NegativeAreaTimesTwo;
-                        var b3 = Ones - b1 - b2;
+                        var insideMask = context.GetInsideMask();
 
-                        // Interpolate the depth value
-                        var z1 = Vector256.Create(clipSpaceTriangle[0].W);
-                        var z2 = Vector256.Create(clipSpaceTriangle[1].W);
-                        var z3 = Vector256.Create(clipSpaceTriangle[2].W);
-                        var z1Inv = Ones / z1; // Avx.Reciprocal(z1);
-                        var z2Inv = Ones / z2; // Avx.Reciprocal(z2);
-                        var z3Inv = Ones / z3; // Avx.Reciprocal(z3);
-                        var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                        var z = Ones / zInv; // Avx.Reciprocal(zInv);
+                        if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
+                        {
+                            enter = true;
 
-                        // Update z-Buffer
-                        var zBufferOffset = y * zBufferStride + x;
-                        var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
-                        var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
-                        zBufferValue = Avx.Max(zBufferValue, z);
-                        Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
+                            // Calculate barycentric coordinates
+                            var b1 = context.Function2 / context.NegativeAreaTimesTwo;
+                            var b2 = context.Function3 / context.NegativeAreaTimesTwo;
+                            var b3 = Ones - b1 - b2;
 
-                        // Apply z-Buffer
-                        insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
+                            // Interpolate the depth value
+                            var z1 = Vector256.Create(clipSpaceTriangle[0].W);
+                            var z2 = Vector256.Create(clipSpaceTriangle[1].W);
+                            var z3 = Vector256.Create(clipSpaceTriangle[2].W);
+                            var z1Inv = Ones / z1; // Avx.Reciprocal(z1);
+                            var z2Inv = Ones / z2; // Avx.Reciprocal(z2);
+                            var z3Inv = Ones / z3; // Avx.Reciprocal(z3);
+                            var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
+                            var z = Ones / zInv; // Avx.Reciprocal(zInv);
 
-                        // Calculate perspective-correct barycentric coordinates
-                        var b1pc = z / z1 * b1;
-                        var b2pc = z / z2 * b2;
-                        var b3pc = Avx.Subtract(Ones, b1pc);
-                        b3pc = Avx.Subtract(b3pc, b2pc);
+                            // Update z-Buffer
+                            var zBufferOffset = y * zBufferStride + x;
+                            var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
+                            var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
+                            zBufferValue = Avx.Max(zBufferValue, z);
+                            Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
 
-                        // Interpolate texture coordinates
-                        var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
-                        us = Avx.And(us, insideMask);
-                        var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
-                        vs = Avx.And(vs, insideMask);
+                            // Apply z-Buffer
+                            insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
 
-                        // Sample texture and render pixel
-                        var offset = y * frameBufferStride + x * BytesPerPixel;
-                        sampler.Sample(us, vs, pixel);
+                            // Calculate perspective-correct barycentric coordinates
+                            var b1pc = z / z1 * b1;
+                            var b2pc = z / z2 * b2;
+                            var b3pc = Avx.Subtract(Ones, b1pc);
+                            b3pc = Avx.Subtract(b3pc, b2pc);
 
-                        float ambientLightIntensity = 0.3f;
+                            // Interpolate texture coordinates
+                            var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
+                            us = Avx.And(us, insideMask);
+                            var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
+                            vs = Avx.And(vs, insideMask);
 
-                        var rsdiffuse = Avx.ConvertToVector256Single(pixel.Rs);
-                        var gsdiffuse = Avx.ConvertToVector256Single(pixel.Gs);
-                        var bsdiffuse = Avx.ConvertToVector256Single(pixel.Bs);
+                            // Sample texture and render pixel
+                            var offset = y * frameBufferStride + x * BytesPerPixel;
+                            sampler.Sample(us, vs, pixel);
 
-                        var rsambient = rsdiffuse * ambientLightIntensity;
-                        var gsambient = gsdiffuse * ambientLightIntensity;
-                        var bsambient = bsdiffuse * ambientLightIntensity;
+                            float ambientLightIntensity = 0.3f;
 
-                        p.Xs = a0ld.Xs * b1pc + a1ld.Xs * b2pc + a2ld.Xs * b3pc;
-                        p.Ys = a0ld.Ys * b1pc + a1ld.Ys * b2pc + a2ld.Ys * b3pc;
-                        p.Zs = a0ld.Zs * b1pc + a1ld.Zs * b2pc + a2ld.Zs * b3pc;
+                            var rsdiffuse = Avx.ConvertToVector256Single(pixel.Rs);
+                            var gsdiffuse = Avx.ConvertToVector256Single(pixel.Gs);
+                            var bsdiffuse = Avx.ConvertToVector256Single(pixel.Bs);
 
-                        var sqrt = Avx.Sqrt(p.Xs * p.Xs + p.Ys * p.Ys + p.Zs * p.Zs);
-                        p.Xs /= sqrt;
-                        p.Ys /= sqrt;
-                        p.Zs /= sqrt;
+                            var rsambient = rsdiffuse * ambientLightIntensity;
+                            var gsambient = gsdiffuse * ambientLightIntensity;
+                            var bsambient = bsdiffuse * ambientLightIntensity;
 
-                        var illum = Vector256.Create(0.9f);
+                            // Compute normalized light direction
+                            p.Xs = a0ld.Xs * b1pc + a1ld.Xs * b2pc + a2ld.Xs * b3pc;
+                            p.Ys = a0ld.Ys * b1pc + a1ld.Ys * b2pc + a2ld.Ys * b3pc;
+                            p.Zs = a0ld.Zs * b1pc + a1ld.Zs * b2pc + a2ld.Zs * b3pc;
+                            var sqrt = Avx.Sqrt(p.Xs * p.Xs + p.Ys * p.Ys + p.Zs * p.Zs);
+                            p.Xs /= sqrt;
+                            p.Ys /= sqrt;
+                            p.Zs /= sqrt;
 
-                        var nx = Vector256.Create(Normals[0].X);
-                        var ny = Vector256.Create(Normals[0].Y);
-                        var nz = Vector256.Create(Normals[0].Z);
+                            var illum = Vector256.Create(0.9f);
 
-                        var dot = p.Xs * nx + p.Ys * ny + p.Zs * nz;
-                        dot = Avx.Max(dot, Zeros);
+                            var nx = Vector256.Create(Normals[0].X);
+                            var ny = Vector256.Create(Normals[0].Y);
+                            var nz = Vector256.Create(Normals[0].Z);
 
-                        var rsdirect = rsdiffuse * illum * dot;
-                        var gsdirect = gsdiffuse * illum * dot;
-                        var bsdirect = bsdiffuse * illum * dot;
+                            var dot = p.Xs * nx + p.Ys * ny + p.Zs * nz;
+                            dot = Avx.Max(dot, Zeros);
 
-                        pixel.Rs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, rsambient + rsdirect));
-                        pixel.Gs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, gsambient + gsdirect));
-                        pixel.Bs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, bsambient + bsdirect));
+                            var rsdirect = rsdiffuse * illum * dot;
+                            var gsdirect = gsdiffuse * illum * dot;
+                            var bsdirect = bsdiffuse * illum * dot;
 
-                        pixel.StoreInterleaved(framebuffer + offset, insideMask);
+                            pixel.Rs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, rsambient + rsdirect));
+                            pixel.Gs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, gsambient + gsdirect));
+                            pixel.Bs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, bsambient + bsdirect));
+
+                            pixel.StoreInterleaved(framebuffer + offset, insideMask);
+                        }
+                        else if (enter)
+                        {
+                            exit = true;
+                        }
+                        
+                        context.IncrementX();
+                    }
+                    else
+                    {
+                        var r = aabb.X + aabb.Width - x;
+                        var rm = (int)System.Math.Ceiling((float)r / 8);
+                        context.IncrementX(rm);
+                        break;
                     }
 
-                    context.IncrementX();
                 }
 
                 context.ResetXAndIncrementY();
