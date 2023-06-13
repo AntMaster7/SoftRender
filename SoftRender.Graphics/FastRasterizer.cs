@@ -71,7 +71,7 @@ namespace SoftRender
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<float> GetPixelMask()
+        public Vector256<float> GetInsideMask()
         {
             var inside = Vector256.GreaterThanOrEqual(Function1, FastRasterizer.Zeros);
             inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, FastRasterizer.Zeros));
@@ -106,12 +106,15 @@ namespace SoftRender
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int frameBufferStride;
-        private float* zBuffer;
+        private readonly int zBufferSize;
+        private readonly float* zBuffer;
         private readonly int zBufferStride;
 
         public RasterizerMode Mode;
 
         public Vector3D[] Normals = new Vector3D[3];
+
+        public int Face = -1;
 
         public FastRasterizer(byte* framebuffer, int stride, Size size, ViewportTransform vpt)
         {
@@ -120,12 +123,10 @@ namespace SoftRender
 
             frameBufferStride = stride;
 
-            var zBufferSize = size.Width * size.Height;
+            zBufferStride = size.Width;
+            zBufferSize = size.Width * size.Height;
             zBuffer = (float*)Marshal.AllocHGlobal(zBufferSize * sizeof(float));
-            for (int i = 0; i < zBufferSize; i++)
-            {
-                Unsafe.Write(zBuffer + i, float.NaN);
-            }
+            ResetZBuffer();
         }
 
         ~FastRasterizer()
@@ -137,6 +138,14 @@ namespace SoftRender
         {
             Marshal.FreeHGlobal((nint)zBuffer);
             GC.SuppressFinalize(this);
+        }
+
+        public void ResetZBuffer()
+        {
+            for (int i = 0; i < zBufferSize; i++)
+            {
+                Unsafe.Write(zBuffer + i, float.MinValue);
+            }
         }
 
         /// <summary>
@@ -211,9 +220,9 @@ namespace SoftRender
             {
                 for (int x = aabb.X; x < aabb.X + aabb.Width; x += 8)
                 {
-                    var pixelMask = context.GetPixelMask();
+                    var insideMask = context.GetInsideMask();
 
-                    if (Vector256.GreaterThanAny(pixelMask.AsByte(), Zeros.AsByte()))
+                    if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
                     {
                         // Calculate barycentric coordinates
                         var b1 = context.Function2 / context.NegativeAreaTimesTwo;
@@ -224,21 +233,21 @@ namespace SoftRender
                         var z1 = Vector256.Create(clipSpaceTriangle[0].W);
                         var z2 = Vector256.Create(clipSpaceTriangle[1].W);
                         var z3 = Vector256.Create(clipSpaceTriangle[2].W);
-                        var z1Inv = Avx.Reciprocal(z1); // Ones / z1;
-                        var z2Inv = Avx.Reciprocal(z2); // Ones / z2; 
-                        var z3Inv = Avx.Reciprocal(z3); // Ones / z3;
+                        var z1Inv = Ones / z1; // Avx.Reciprocal(z1);
+                        var z2Inv = Ones / z2; // Avx.Reciprocal(z2);
+                        var z3Inv = Ones / z3; // Avx.Reciprocal(z3);
                         var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                        var z = Avx.Reciprocal(zInv); // Ones / zInv;
+                        var z = Ones / zInv; // Avx.Reciprocal(zInv);
 
                         // Update z-Buffer
                         var zBufferOffset = y * zBufferStride + x;
                         var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
-                        zBufferValue = Avx.Min(zBufferValue, z);
-                        Avx.Store(zBuffer + zBufferOffset, zBufferValue);
-                        var zBufferMask = Avx.Compare(zBufferValue, z, FloatComparisonMode.OrderedLessThanSignaling);
+                        var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
+                        zBufferValue = Avx.Max(zBufferValue, z);
+                        Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
 
                         // Apply z-Buffer
-                        pixelMask = Avx.And(zBufferMask.AsSingle(), pixelMask);
+                        insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
 
                         // Calculate perspective-correct barycentric coordinates
                         var b1pc = z / z1 * b1;
@@ -248,9 +257,9 @@ namespace SoftRender
 
                         // Interpolate texture coordinates
                         var us = a0us * b1pc + a1us * b2pc + a2us * b3pc;
-                        us = Avx.And(us, pixelMask);
+                        us = Avx.And(us, insideMask);
                         var vs = a0vs * b1pc + a1vs * b2pc + a2vs * b3pc;
-                        vs = Avx.And(vs, pixelMask);
+                        vs = Avx.And(vs, insideMask);
 
                         // Sample texture and render pixel
                         var offset = y * frameBufferStride + x * BytesPerPixel;
@@ -292,7 +301,7 @@ namespace SoftRender
                         pixel.Gs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, gsambient + gsdirect));
                         pixel.Bs = Avx.ConvertToVector256Int32(Avx.Min(MaxColor, bsambient + bsdirect));
 
-                        pixel.StoreInterleaved(framebuffer + offset, pixelMask);
+                        pixel.StoreInterleaved(framebuffer + offset, insideMask);
                     }
 
                     context.IncrementX();

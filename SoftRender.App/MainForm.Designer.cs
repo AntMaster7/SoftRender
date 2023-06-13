@@ -28,32 +28,36 @@
         /// </summary>
         private void InitializeComponent()
         {
-            renderPictureBox = new PictureBox();
-            ((System.ComponentModel.ISupportInitialize)renderPictureBox).BeginInit();
-            SuspendLayout();
+            this.renderPictureBox = new System.Windows.Forms.PictureBox();
+            ((System.ComponentModel.ISupportInitialize)(this.renderPictureBox)).BeginInit();
+            this.SuspendLayout();
             // 
             // renderPictureBox
             // 
-            renderPictureBox.Dock = DockStyle.Fill;
-            renderPictureBox.Location = new Point(0, 0);
-            renderPictureBox.Name = "renderPictureBox";
-            renderPictureBox.Size = new Size(1024, 768);
-            renderPictureBox.TabIndex = 0;
-            renderPictureBox.TabStop = false;
+            this.renderPictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.renderPictureBox.Location = new System.Drawing.Point(0, 0);
+            this.renderPictureBox.Margin = new System.Windows.Forms.Padding(2);
+            this.renderPictureBox.Name = "renderPictureBox";
+            this.renderPictureBox.Size = new System.Drawing.Size(1024, 768);
+            this.renderPictureBox.TabIndex = 0;
+            this.renderPictureBox.TabStop = false;
+            this.renderPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.RenderPictureBox_MouseClick);
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(10F, 25F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1024, 768);
-            Controls.Add(renderPictureBox);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
-            Name = "MainForm";
-            Text = "SoftRender - A Software Rasterizer";
-            Load += Main_Load;
-            ((System.ComponentModel.ISupportInitialize)renderPictureBox).EndInit();
-            ResumeLayout(false);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(1024, 768);
+            this.Controls.Add(this.renderPictureBox);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Margin = new System.Windows.Forms.Padding(2);
+            this.MaximizeBox = false;
+            this.Name = "MainForm";
+            this.Text = "SoftRender - A Software Rasterizer";
+            this.Load += new System.EventHandler(this.Main_Load);
+            ((System.ComponentModel.ISupportInitialize)(this.renderPictureBox)).EndInit();
+            this.ResumeLayout(false);
+
         }
 
         #endregion

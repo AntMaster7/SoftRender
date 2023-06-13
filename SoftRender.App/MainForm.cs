@@ -25,14 +25,12 @@ namespace SoftRender.App
             model = MeshLoader.Load("Suzanne.obj");
 
             //model = new Model();
-
             //model.Vertices = new Vector3D[3]
             //{
             //    new Vector3D(0f, 0.5f, 0f),
             //    new Vector3D(-0.5f, -0.5f, 0f),
             //    new Vector3D(0.5f, -0.5f, 0f),
             //};
-
             //model.Attributes = new VertexAttributes[3]
             //{
             //    new VertexAttributes(0.5f, 1, 0,0, 1),
@@ -50,7 +48,7 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(0f);
+            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(0.0f);
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {
@@ -130,7 +128,7 @@ namespace SoftRender.App
 
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 100;
+            int iterations = 10;
             var frameTimer = new Stopwatch();
 
             var vertexShader = new VertexShader();
@@ -142,7 +140,7 @@ namespace SoftRender.App
                 ctx.Clear(0);
 
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                fastRasterizer.Mode = RasterizerMode.Wireframe;
+                fastRasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
@@ -157,6 +155,7 @@ namespace SoftRender.App
                 Span<Vector4D> cs = new Vector4D[vertices.Length];
                 Span<VertexAttributes> at = new VertexAttributes[vertices.Length];
                 Span<Vector3D> ns = new Vector3D[vertices.Length];
+                bool[] mask = new bool[vertices.Length];
 
                 // Parallel.For(0, 100, opts, (iter) =>
                 // Task.Factory.StartNew(() =>
@@ -166,6 +165,8 @@ namespace SoftRender.App
 
                     if (Vector3D.DotProduct(normal, vertices[i]) < 0)
                     {
+                        mask[i] = true;
+
                         for (int j = 0; j < 3; j++)
                         {
                             var vertexShaderOutput = vertexShader.Run(vertices[i + j]);
@@ -188,8 +189,12 @@ namespace SoftRender.App
                 {
                     for (int i = 0; i < cs.Length; i += 3)
                     {
-                        fastRasterizer.Normals[0] = ns[i];
-                        fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
+                        if (mask[i])
+                        {
+                            fastRasterizer.Normals[0] = ns[i];
+                            fastRasterizer.Face = i / 3;
+                            fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
+                        }
                     }
                 }
 
@@ -220,6 +225,24 @@ namespace SoftRender.App
 
                 return new NearestSampler(texture, bitmap.Size);
             }
+        }
+
+        private bool toolTipVisible;
+        private ToolTip toolTip = new ToolTip();
+
+        private void RenderPictureBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            if(toolTipVisible)
+            {
+                toolTip.Hide(this);
+            }
+            else
+            {
+                var pos = e.Location;
+                toolTip.Show($"X={pos.X} Y={pos.Y}", this, e.Location);
+            }
+
+            toolTipVisible = !toolTipVisible;
         }
     }
 }
