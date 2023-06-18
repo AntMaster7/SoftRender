@@ -1,5 +1,5 @@
-# SoftRender - 3D Software Rendering
-Ongoing implementation of my own software renderer using C# with .NET Core. The project explores the power of hardware intrinsics in C# that are available since .NET Core 3.
+# SharpRender - 3D Software Rendering using C#
+Ongoing implementation of my own software renderer using C# with .NET Core. The project explores the benefits of hardware intrinsics in C#.
 
 ## Some References
 * Pineda, J. A Parallel Algorithm for Polygon Rasterization (August 1988)
