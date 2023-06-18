@@ -14,7 +14,7 @@ namespace SoftRender.App
         private Bitmap bitmap;
         private ISampler sampler;
         private Stopwatch tickStopWatch = new Stopwatch();
-        private int frameTimeAccumulator = 0;
+        private float frameTimeAccumulator = 0;
 
         private Model model;
 
@@ -42,20 +42,20 @@ namespace SoftRender.App
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
-            
+
             Application.Idle += Application_Idle;
         }
 
         private void Main_Load(object sender, EventArgs e)
         {
-            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(0.0f);
+            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.0f);
 
             for (int i = 0; i < model.Vertices.Length; i++)
             {
                 model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
             }
 
-            DrawArrays(model.Vertices, model.Attributes);
+            DrawArrays(model);
         }
 
         private void Application_Idle(object? sender, EventArgs e)
@@ -68,25 +68,26 @@ namespace SoftRender.App
 
         private void Tick()
         {
+            var updated = false;
+
             if (!tickStopWatch.IsRunning)
             {
                 tickStopWatch.Start();
+                updated = true; // initial draw
             }
 
             var targetFrameTime = 1000 / TargetFrameRate;
 
-            var updated = false;
-
-            frameTimeAccumulator += tickStopWatch.Elapsed.Milliseconds;
+            frameTimeAccumulator += (float)tickStopWatch.Elapsed.Ticks / TimeSpan.TicksPerMillisecond;
             if (frameTimeAccumulator > MaxFrameTime)
             {
                 frameTimeAccumulator = MaxFrameTime;
             }
 
+            tickStopWatch.Restart();
+
             while (frameTimeAccumulator >= targetFrameTime)
             {
-                tickStopWatch.Restart();
-
                 Update(TimeSpan.FromMilliseconds(targetFrameTime));
                 frameTimeAccumulator -= targetFrameTime;
 
@@ -95,27 +96,22 @@ namespace SoftRender.App
 
             if (updated)
             {
-                DrawArrays(model.Vertices, model.Attributes);
+                DrawArrays(model);
             }
         }
 
         private void Update(TimeSpan delta)
         {
-            const float AngularVelocity = 0.2f;
+            const float AngularVelocity = 0.6f;
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            var rot = Matrix4D.CreateTranslate(0, 0, -2) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 2);
-
-            for (int i = 0; i < model.Vertices.Length; i++)
-            {
-                // model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
-            }
+            model.Transform = model.Transform * Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 4);
         }
 
-        private unsafe void DrawArrays(Vector3D[] vertices, VertexAttributes[] attributes)
+        private unsafe void DrawArrays(Model model)
         {
-            if (vertices.Length % 3 != 0)
+            if (model.Vertices.Length % 3 != 0)
             {
                 throw new ArgumentException("Number of vertices must be a multiple of 3.");
             }
@@ -131,9 +127,10 @@ namespace SoftRender.App
             int iterations = 100;
             var frameTimer = new Stopwatch();
 
-            var vertexShader = new VertexShader();
-            vertexShader.ProjectionMatrix = frustum;
-            vertexShader.LightSource = new Vector3D(3, 0, -1);
+            var mv = model.Transform;
+            var mvp = frustum * mv;
+            var invMv = mv.GetUpperLeft().Inverse();
+            var vertexShader = new VertexShader(mvp, invMv, new Vector3D(3, 0, -1));
 
             using (var ctx = new BitmapContext(bitmap))
             {
@@ -152,34 +149,22 @@ namespace SoftRender.App
                     MaxDegreeOfParallelism = 4,
                 };
 
-                Span<Vector4D> cs = new Vector4D[vertices.Length];
-                Span<VertexAttributes> at = new VertexAttributes[vertices.Length];
-                Span<Vector3D> ns = new Vector3D[vertices.Length];
-                bool[] mask = new bool[vertices.Length];
+                Span<Vector4D> cs = new Vector4D[model.Vertices.Length];
+                Span<VertexAttributes> at = new VertexAttributes[model.Vertices.Length];
+                Span<Vector3D> ns = new Vector3D[model.Vertices.Length];
 
                 // Parallel.For(0, 100, opts, (iter) =>
                 // Task.Factory.StartNew(() =>
-                for (int i = 0; i < vertices.Length; i += 3)
+                for (int i = 0; i < model.Vertices.Length; i += 3)
                 {
-                    var normal = Vector3D.CrossProduct(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i]);
-
-                    if (Vector3D.DotProduct(normal, vertices[i]) < 0)
+                    for (int j = 0; j < 3; j++)
                     {
-                        mask[i] = true;
+                        var vertexShaderOutput = vertexShader.Run(model.Vertices[i + j], model.Attributes[i + j].Normal);
 
-                        for (int j = 0; j < 3; j++)
-                        {
-                            var vertexShaderOutput = vertexShader.Run(vertices[i + j]);
-
-                            // attribs[j] = attributes[i + j];
-                            // attribs[j].LightDirection = vertexShaderOutput.LightDirection;
-
-                            cs[i + j] = vertexShaderOutput.OutputVertex;
-                            at[i + j] = attributes[i + j];
-                            at[i + j].LightDirection = vertexShaderOutput.LightDirection;
-                        }
-
-                        ns[i] = normal.Normalize();
+                        cs[i + j] = vertexShaderOutput.OutputVertex;
+                        ns[i + j] = vertexShaderOutput.OutputNormal;
+                        at[i + j] = model.Attributes[i + j];
+                        at[i + j].LightDirection = vertexShaderOutput.LightDirection;
                     }
                 }
 
@@ -189,12 +174,9 @@ namespace SoftRender.App
                 {
                     for (int i = 0; i < cs.Length; i += 3)
                     {
-                        if (mask[i])
-                        {
-                            fastRasterizer.Normals[0] = ns[i];
-                            fastRasterizer.Face = i / 3;
-                            fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
-                        }
+                        fastRasterizer.Normals[0] = ns[i];
+                        fastRasterizer.Face = i / 3;
+                        fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
                     }
                 }
 
@@ -232,7 +214,7 @@ namespace SoftRender.App
 
         private void RenderPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
-            if(toolTipVisible)
+            if (toolTipVisible)
             {
                 toolTip.Hide(this);
             }

@@ -118,7 +118,7 @@ namespace SoftRender.Graphics
             return new Model()
             {
                 Vertices = vertices.ToArray(),
-                Attributes = attribs.ToArray()
+                Attributes = attribs.ToArray(),
             };
         }
     }

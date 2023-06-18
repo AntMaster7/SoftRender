@@ -1,6 +1,5 @@
 ﻿namespace SoftRender.SRMath
 {
-
     public class Matrix3D
     {
         public float M11;

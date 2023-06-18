@@ -1,6 +1,7 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
 using System.Drawing;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -171,16 +172,20 @@ namespace SoftRender
                 screenTriangle[index] = vpt * ndcTriangle[index];
             }
 
-            if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
+            var normal = Vector3D.CrossProduct(ndcTriangle[1] - ndcTriangle[0], ndcTriangle[2] - ndcTriangle[0]);
+            if (Vector3D.DotProduct(normal, ndcTriangle[0]) < 0)
             {
-                FillTriangle(triangle, screenTriangle, attribs, texture);
-            }
+                if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
+                {
+                    FillTriangle(triangle, screenTriangle, attribs, texture);
+                }
 
-            if ((Mode & RasterizerMode.Wireframe) == RasterizerMode.Wireframe)
-            {
-                DrawLine((int)screenTriangle[0].X, (int)screenTriangle[0].Y, (int)screenTriangle[1].X, (int)screenTriangle[1].Y, new ColorRGB(255, 255, 255));
-                DrawLine((int)screenTriangle[1].X, (int)screenTriangle[1].Y, (int)screenTriangle[2].X, (int)screenTriangle[2].Y, new ColorRGB(255, 255, 255));
-                DrawLine((int)screenTriangle[2].X, (int)screenTriangle[2].Y, (int)screenTriangle[0].X, (int)screenTriangle[0].Y, new ColorRGB(255, 255, 255));
+                if ((Mode & RasterizerMode.Wireframe) == RasterizerMode.Wireframe)
+                {
+                    DrawLine((int)screenTriangle[0].X, (int)screenTriangle[0].Y, (int)screenTriangle[1].X, (int)screenTriangle[1].Y, new ColorRGB(255, 255, 255));
+                    DrawLine((int)screenTriangle[1].X, (int)screenTriangle[1].Y, (int)screenTriangle[2].X, (int)screenTriangle[2].Y, new ColorRGB(255, 255, 255));
+                    DrawLine((int)screenTriangle[2].X, (int)screenTriangle[2].Y, (int)screenTriangle[0].X, (int)screenTriangle[0].Y, new ColorRGB(255, 255, 255));
+                }
             }
         }
 
@@ -325,7 +330,7 @@ namespace SoftRender
                         {
                             exit = true;
                         }
-                        
+
                         context.IncrementX();
                     }
                     else

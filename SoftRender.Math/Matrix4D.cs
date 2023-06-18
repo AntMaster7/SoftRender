@@ -180,5 +180,13 @@
                        m13 * (m21 * m32 - m22 * m31);
             }
         }
+
+        public Matrix3D GetUpperLeft()
+        {
+            return new Matrix3D(
+                M11, M12, M13,
+                M21, M22, M23,
+                M31, M32, M33);
+        }
     }
 }
