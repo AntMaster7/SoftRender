@@ -22,7 +22,7 @@ namespace SoftRender.App
         {
             InitializeComponent();
 
-            model = MeshLoader.Load("Suzanne.obj");
+            model = MeshLoader.Load("Cube.obj");
 
             //model = new Model();
             //model.Vertices = new Vector3D[3]
@@ -181,6 +181,18 @@ namespace SoftRender.App
                 }
 
                 frameTimer.Stop();
+
+                // Quick hack to render normals
+                for (int i = 0; i < ns.Length; i++)
+                {
+                    var a = cs[i].PerspectiveDivide();
+                    var b = (mvp * (model.Vertices[i] + ns[i])).PerspectiveDivide();
+
+                    var p1 = vpt * a;
+                    var p2 = vpt * b;
+
+                    ctx.DrawLine((int)p1.X, (int)p1.Y, (int)p2.X, (int)p2.Y, new ColorRGB(255, 0, 0));
+                }
             }
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
