@@ -48,12 +48,7 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            var rot = Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(0.0f);
-
-            for (int i = 0; i < model.Vertices.Length; i++)
-            {
-                model.Vertices[i] = (rot * model.Vertices[i]).PerspectiveDivide();
-            }
+            model.Transform = Matrix4D.CreateTranslate(0, 0, -4);
 
             DrawArrays(model);
         }
@@ -106,7 +101,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            model.Transform = model.Transform * Matrix4D.CreateTranslate(0, 0, -4) * Matrix4D.CreateFromYaw(step) * Matrix4D.CreateTranslate(0, 0, 4);
+            model.Transform = model.Transform * Matrix4D.CreateRoll(step) * Matrix4D.CreateYaw(step);
         }
 
         private unsafe void DrawArrays(Model model)
@@ -137,7 +132,7 @@ namespace SoftRender.App
                 ctx.Clear(0);
 
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                fastRasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
+                fastRasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
@@ -186,7 +181,12 @@ namespace SoftRender.App
                 for (int i = 0; i < ns.Length; i++)
                 {
                     var a = cs[i].PerspectiveDivide();
-                    var b = (mvp * (model.Vertices[i] + ns[i])).PerspectiveDivide();
+
+                    var k = mv * model.Vertices[i];
+                    var k2 = new Vector4D(ns[i].X, ns[i].Y, ns[i].Z, 0);
+                    var k3 = k + k2;
+
+                    var b = (frustum * k3).PerspectiveDivide();
 
                     var p1 = vpt * a;
                     var p2 = vpt * b;

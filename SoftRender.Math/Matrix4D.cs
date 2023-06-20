@@ -69,7 +69,7 @@
         /// </summary>
         /// <param name="angle">The angle in radians.</param>
         /// <returns>The rotation matrix.</returns>
-        public static Matrix4D CreateFromYaw(float angle)
+        public static Matrix4D CreateYaw(float angle)
         {
             var cos = (float)System.Math.Cos(angle);
             var sin = (float)System.Math.Sin(angle);
@@ -78,6 +78,23 @@
                 cos, 0.0f, sin, 0.0f,
                 0.0f, 1.0f, 0.0f, 0.0f,
                 -sin, 0.0f, cos, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f);
+        }
+
+        /// <summary>
+        /// Creates a new matrix that rotates vectors around the yaw (z) axis.
+        /// </summary>
+        /// <param name="angle">The angle in radians.</param>
+        /// <returns>The rotation matrix.</returns>
+        public static Matrix4D CreateRoll(float angle)
+        {
+            var cos = (float)System.Math.Cos(angle);
+            var sin = (float)System.Math.Sin(angle);
+
+            return new Matrix4D(
+                cos, sin, 0.0f, 0.0f,
+                -sin, cos, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
                 0.0f, 0.0f, 0.0f, 1.0f);
         }
 
