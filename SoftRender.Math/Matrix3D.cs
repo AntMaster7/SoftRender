@@ -114,18 +114,36 @@
 
             // Math is explained at https://www.onlinemathstutor.org/post/3x3_inverses
 
+            //var a = new Vector3D(M11, M21, M31);
+            //var b = new Vector3D(M12, M22, M32);
+            //var c = new Vector3D(M13, M23, M33);
+
             // Calculate the cross products
             float bxcX = M22 * M33 - M23 * M32;
             float bxcY = M32 * M13 - M12 * M33;
-            float bxcZ = M21 * M32 - M22 * M31;
+            float bxcZ = M12 * M23 - M22 * M13;
 
             float cxaX = M23 * M31 - M33 * M21;
             float cxaY = M33 * M11 - M31 * M13;
             float cxaZ = M13 * M21 - M23 * M11;
 
-            float axbX = M12 * M23 - M13 * M22;
+            float axbX = M21 * M32 - M31 * M22;
             float axbY = M13 * M21 - M11 * M23;
             float axbZ = M11 * M22 - M12 * M21;
+
+            //var bxc = Vector3D.CrossProduct(b, c);
+            //var cxa = Vector3D.CrossProduct(c, a);
+            //var axb = Vector3D.CrossProduct(a, b);
+
+            //Debug.Assert(bxc.X == bxcX);
+            //Debug.Assert(bxc.Y == bxcY);
+            //Debug.Assert(bxc.Z == bxcZ);
+            //Debug.Assert(cxa.X == cxaX);
+            //Debug.Assert(cxa.Y == cxaY);
+            //Debug.Assert(cxa.Z == cxaZ);
+            //Debug.Assert(axb.X == axbX);
+            //Debug.Assert(axb.Y == axbY);
+            //Debug.Assert(axb.Z == axbZ);
 
             // Calculate the determinant of the original matrix (via dot product of 'a' with 'b x c')
             float det = M11 * bxcX + M21 * bxcY + M31 * bxcZ;
@@ -137,6 +155,41 @@
                 idet * bxcX, idet * bxcY, idet * bxcZ,
                 idet * cxaX, idet * cxaY, idet * cxaZ,
                 idet * axbX, idet * axbY, idet * axbZ);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+
+            Matrix3D matrix = (Matrix3D)obj;
+
+            return M11 == matrix.M11
+                   && M12 == matrix.M12
+                   && M13 == matrix.M13
+                   && M21 == matrix.M21
+                   && M22 == matrix.M22
+                   && M23 == matrix.M23
+                   && M31 == matrix.M31
+                   && M32 == matrix.M32
+                   && M33 == matrix.M33;
+        }
+
+        public override int GetHashCode()
+        {
+            int hash = 17;
+            hash = hash * 23 + M11.GetHashCode();
+            hash = hash * 23 + M12.GetHashCode();
+            hash = hash * 23 + M13.GetHashCode();
+            hash = hash * 23 + M21.GetHashCode();
+            hash = hash * 23 + M22.GetHashCode();
+            hash = hash * 23 + M23.GetHashCode();
+            hash = hash * 23 + M31.GetHashCode();
+            hash = hash * 23 + M32.GetHashCode();
+            hash = hash * 23 + M33.GetHashCode();
+            return hash;
         }
     }
 }
