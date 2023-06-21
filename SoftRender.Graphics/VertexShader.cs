@@ -14,15 +14,18 @@ namespace SoftRender.Graphics
 
     public class VertexShader
     {
-        private Matrix4D mvpMatrix;
+        private Matrix4D modelView;
+
+        private Matrix4D projection;
 
         private Matrix3D invMvMatrix;
 
         private Vector3D lightSource;
 
-        public VertexShader(Matrix4D mvpMatrix, Matrix3D invMvMatrix, Vector3D lightSource)
+        public VertexShader(Matrix4D modelView, Matrix4D projection, Matrix3D invMvMatrix, Vector3D lightSource)
         {
-            this.mvpMatrix = mvpMatrix;
+            this.modelView = modelView;
+            this.projection = projection;
             this.invMvMatrix = invMvMatrix;
             this.lightSource = lightSource;
         }
@@ -30,11 +33,13 @@ namespace SoftRender.Graphics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VertexShaderOutput Run(Vector3D v, Vector3D n)
         {
+            var viewPos = modelView * v;
+
             return new VertexShaderOutput()
             {
-                OutputVertex = mvpMatrix * v,
+                OutputVertex = projection * viewPos,
                 OutputNormal = n * invMvMatrix,
-                LightDirection = lightSource - v,
+                LightDirection = new Vector3D(lightSource.X - viewPos.X, lightSource.Y - viewPos.Y, lightSource.Z - viewPos.Z)
             };
         }
     }

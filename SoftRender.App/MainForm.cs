@@ -22,7 +22,7 @@ namespace SoftRender.App
         {
             InitializeComponent();
 
-            model = MeshLoader.Load("Cube.obj");
+            model = MeshLoader.Load("Suzanne.obj");
 
             //model = new Model();
             //model.Vertices = new Vector3D[3]
@@ -48,7 +48,7 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            model.Transform = Matrix4D.CreateTranslate(0, 0, -4);
+            model.Transform = Matrix4D.CreateTranslate(0, 0, -2);
 
             DrawArrays(model);
         }
@@ -97,11 +97,11 @@ namespace SoftRender.App
 
         private void Update(TimeSpan delta)
         {
-            const float AngularVelocity = 0.6f;
+            const float AngularVelocity = 0.4f;
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            model.Transform = model.Transform * Matrix4D.CreateRoll(step); // * Matrix4D.CreateYaw(step);
+            model.Transform = model.Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
         }
 
         private unsafe void DrawArrays(Model model)
@@ -119,20 +119,19 @@ namespace SoftRender.App
 
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 100;
+            int iterations = 1;
             var frameTimer = new Stopwatch();
 
-            var mv = model.Transform;
-            var mvp = projection * mv;
-            var invMv = mv.GetUpperLeft().Inverse();
-            var vertexShader = new VertexShader(mvp, invMv, new Vector3D(3, 0, -1));
+            var mv           = model.Transform;
+            var invMv        = mv.GetUpperLeft().Inverse();
+            var vertexShader = new VertexShader(mv, projection, invMv, new Vector3D(3, 0, -1));
 
             using (var ctx = new BitmapContext(bitmap))
             {
                 ctx.Clear(0);
 
                 var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                fastRasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
+                fastRasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
@@ -175,16 +174,16 @@ namespace SoftRender.App
                 frameTimer.Stop();
 
                 // Quick hack to render normals
-                for (int i = 0; i < ns.Length; i++)
-                {
-                    var a = cs[i].PerspectiveDivide();
-                    var p = new Vector4D(ns[i].X, ns[i].Y, ns[i].Z, 0);
-                    var q = mv * model.Vertices[i] + p;
-                    var b = (projection * q).PerspectiveDivide();
-                    var p1 = vpt * a;
-                    var p2 = vpt * b;
-                    ctx.DrawLine((int)p1.X, (int)p1.Y, (int)p2.X, (int)p2.Y, new ColorRGB(255, 0, 0));
-                }
+                //for (int i = 0; i < ns.Length; i++)
+                //{
+                //    var a = cs[i].PerspectiveDivide();
+                //    var p = new Vector4D(ns[i].X, ns[i].Y, ns[i].Z, 0);
+                //    var q = mv * model.Vertices[i] + p;
+                //    var b = (projection * q).PerspectiveDivide();
+                //    var p1 = vpt * a;
+                //    var p2 = vpt * b;
+                //    ctx.DrawLine((int)p1.X, (int)p1.Y, (int)p2.X, (int)p2.Y, new ColorRGB(255, 0, 0));
+                //}
             }
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
