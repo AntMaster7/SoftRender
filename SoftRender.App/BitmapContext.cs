@@ -37,9 +37,12 @@ namespace SoftRender
 
             var offset = y * data.Stride + x * BytesPerPixel;
 
-            *(Scan0 + offset + 0) = color.Blue;
-            *(Scan0 + offset + 1) = color.Green;
-            *(Scan0 + offset + 2) = color.Red;
+            if (x > 0 && x < bitmap.Width && y > 0 && y < bitmap.Height) // brute-force clipping
+            {
+                *(Scan0 + offset + 0) = color.Blue;
+                *(Scan0 + offset + 1) = color.Green;
+                *(Scan0 + offset + 2) = color.Red;
+            }
         }
 
         public void DrawLine(Point p1, Point p2, ColorRGB color) => DrawLine(p1.X, p1.Y, p2.X, p2.Y, color);
