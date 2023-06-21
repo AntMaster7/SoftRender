@@ -1,7 +1,6 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
 using System.Drawing;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -21,6 +20,7 @@ namespace SoftRender
     {
         private static readonly Vector256<float> Eights = Vector256.Create((float)8);
 
+        // Increments for the edge function accumulators
         private Vector256<float> e1x;
         private Vector256<float> e2x;
         private Vector256<float> e3x;
@@ -28,6 +28,7 @@ namespace SoftRender
         private Vector256<float> e2y;
         private Vector256<float> e3y;
 
+        // Edge function accumulators
         public Vector256<float> Function1;
         public Vector256<float> Function2;
         public Vector256<float> Function3;
@@ -333,7 +334,7 @@ namespace SoftRender
 
                         context.IncrementX();
                     }
-                    else
+                    else // basically some useless optimization
                     {
                         var r = aabb.X + aabb.Width - x;
                         var rm = (int)System.Math.Ceiling((float)r / 8);
