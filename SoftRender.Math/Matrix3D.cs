@@ -110,30 +110,29 @@
 
         public Matrix3D Inverse()
         {
-            // Chat gpt helped with inlining
+            // Chat gpt helped with inlining, but f***** up
 
             // Math is explained at https://www.onlinemathstutor.org/post/3x3_inverses
 
             // Calculate the cross products
             float bxcX = M22 * M33 - M23 * M32;
-            float bxcY = M23 * M31 - M21 * M33;
+            float bxcY = M32 * M13 - M12 * M33;
             float bxcZ = M21 * M32 - M22 * M31;
 
-            float cxaX = M32 * M13 - M33 * M12;
+            float cxaX = M23 * M31 - M33 * M21;
             float cxaY = M33 * M11 - M31 * M13;
-            float cxaZ = M31 * M12 - M32 * M11;
+            float cxaZ = M13 * M21 - M23 * M11;
 
             float axbX = M12 * M23 - M13 * M22;
             float axbY = M13 * M21 - M11 * M23;
             float axbZ = M11 * M22 - M12 * M21;
 
             // Calculate the determinant of the original matrix (via dot product of 'a' with 'b x c')
-            float det = M11 * bxcX + M12 * bxcY + M13 * bxcZ;
+            float det = M11 * bxcX + M21 * bxcY + M31 * bxcZ;
 
             // Get the inverse of the determinant
             float idet = 1 / det;
 
-            // Return the transposed matrix of cofactors scaled by 1 / det
             return new Matrix3D(
                 idet * bxcX, idet * bxcY, idet * bxcZ,
                 idet * cxaX, idet * cxaY, idet * cxaZ,

@@ -101,7 +101,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            model.Transform = model.Transform * Matrix4D.CreateRoll(step) * Matrix4D.CreateYaw(step);
+            model.Transform = model.Transform * Matrix4D.CreateRoll(step); // * Matrix4D.CreateYaw(step);
         }
 
         private unsafe void DrawArrays(Model model)
@@ -115,7 +115,7 @@ namespace SoftRender.App
             int h = bitmap.Height;
 
             var camera = new Camera((float)w / h);
-            var frustum = camera.CreateProjectionMatrix();
+            var projection = camera.CreateProjectionMatrix();
 
             var vpt = new ViewportTransform(w, h);
 
@@ -123,7 +123,7 @@ namespace SoftRender.App
             var frameTimer = new Stopwatch();
 
             var mv = model.Transform;
-            var mvp = frustum * mv;
+            var mvp = projection * mv;
             var invMv = mv.GetUpperLeft().Inverse();
             var vertexShader = new VertexShader(mvp, invMv, new Vector3D(3, 0, -1));
 
@@ -135,9 +135,6 @@ namespace SoftRender.App
                 fastRasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
 
                 var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
-
-                //var clipSpace = new Vector4D[3];
-                //var attribs = new VertexAttributes[3];
 
                 var opts = new ParallelOptions
                 {
@@ -181,16 +178,11 @@ namespace SoftRender.App
                 for (int i = 0; i < ns.Length; i++)
                 {
                     var a = cs[i].PerspectiveDivide();
-
-                    var k = mv * model.Vertices[i];
-                    var k2 = new Vector4D(ns[i].X, ns[i].Y, ns[i].Z, 0);
-                    var k3 = k + k2;
-
-                    var b = (frustum * k3).PerspectiveDivide();
-
+                    var p = new Vector4D(ns[i].X, ns[i].Y, ns[i].Z, 0);
+                    var q = mv * model.Vertices[i] + p;
+                    var b = (projection * q).PerspectiveDivide();
                     var p1 = vpt * a;
                     var p2 = vpt * b;
-
                     ctx.DrawLine((int)p1.X, (int)p1.Y, (int)p2.X, (int)p2.Y, new ColorRGB(255, 0, 0));
                 }
             }
