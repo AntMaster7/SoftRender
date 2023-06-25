@@ -2,6 +2,7 @@ using SoftRender.Graphics;
 using SoftRender.SRMath;
 using System.Diagnostics;
 using System.Drawing.Imaging;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace SoftRender.App
@@ -12,17 +13,17 @@ namespace SoftRender.App
         private const int MaxFrameTime = 200;
 
         private Bitmap bitmap;
-        private ISampler sampler;
         private Stopwatch tickStopWatch = new Stopwatch();
         private float frameTimeAccumulator = 0;
+        private MovingAverage averageElapsedMilliseconds = new MovingAverage(10);
 
-        private Model model;
+        private Scene scene = new Scene();
 
         public MainForm()
         {
             InitializeComponent();
 
-            model = MeshLoader.Load("Suzanne.obj");
+            
 
             //model = new Model();
             //model.Vertices = new Vector3D[3]
@@ -38,7 +39,9 @@ namespace SoftRender.App
             //    new VertexAttributes(1f, 0, 0,0, 1)
             //};
 
-            sampler = LoadTexture("brickwall-512x512.jpg");
+            
+
+
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
@@ -48,9 +51,12 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
+            var model = MeshLoader.Load("Suzanne.obj");
+            model.Texture = LoadTexture("brickwall-512x512.jpg");
             model.Transform = Matrix4D.CreateTranslate(0, 0, -2);
+            scene.Models.Add(model);
 
-            DrawArrays(model);
+            scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
         }
 
         private void Application_Idle(object? sender, EventArgs e)
@@ -91,7 +97,7 @@ namespace SoftRender.App
 
             if (updated)
             {
-                DrawArrays(model);
+                DrawScene();
             }
         }
 
@@ -101,77 +107,37 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            model.Transform = model.Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
+            scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
         }
 
-        private unsafe void DrawArrays(Model model)
+        private unsafe void DrawScene()
         {
-            if (model.Vertices.Length % 3 != 0)
-            {
-                throw new ArgumentException("Number of vertices must be a multiple of 3.");
-            }
-
             int w = bitmap.Width;
             int h = bitmap.Height;
-
-            var camera = new Camera((float)w / h);
-            var projection = camera.CreateProjectionMatrix();
-
             var vpt = new ViewportTransform(w, h);
 
-            int iterations = 1;
             var frameTimer = new Stopwatch();
 
-            var mv           = model.Transform;
-            var invMv        = mv.GetUpperLeft().Inverse();
-            var vertexShader = new VertexShader(mv, projection, invMv, new Vector3D(3, 0, -1));
+            Renderer renderer;
 
             using (var ctx = new BitmapContext(bitmap))
             {
                 ctx.Clear(0);
 
-                var fastRasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                fastRasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
+                var rasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
+                rasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
 
-                var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
-
-                var opts = new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = 4,
-                };
-
-                Span<Vector4D> cs = new Vector4D[model.Vertices.Length];
-                Span<VertexAttributes> at = new VertexAttributes[model.Vertices.Length];
-                Span<Vector3D> ns = new Vector3D[model.Vertices.Length];
-
-                // Parallel.For(0, 100, opts, (iter) =>
-                // Task.Factory.StartNew(() =>
-                for (int i = 0; i < model.Vertices.Length; i += 3)
-                {
-                    for (int j = 0; j < 3; j++)
-                    {
-                        var vertexShaderOutput = vertexShader.Run(model.Vertices[i + j], model.Attributes[i + j].Normal);
-
-                        cs[i + j] = vertexShaderOutput.OutputVertex;
-                        ns[i + j] = vertexShaderOutput.OutputNormal;
-                        at[i + j] = model.Attributes[i + j];
-                        at[i + j].LightDirection = vertexShaderOutput.LightDirection;
-                    }
-                }
+                renderer = new Renderer(rasterizer);
 
                 frameTimer.Start();
 
-                for (int iter = 0; iter < iterations; iter++)
-                {
-                    for (int i = 0; i < cs.Length; i += 3)
-                    {
-                        fastRasterizer.Normals[0] = ns[i];
-                        fastRasterizer.Face = i / 3;
-                        fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), sampler);
-                    }
-                }
+                scene.Render(renderer);
 
                 frameTimer.Stop();
+
+                // frameTime = renderer.Render(model.Vertices, model.Attributes, sampler);
+
+                // var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
 
                 // Quick hack to render normals
                 //for (int i = 0; i < ns.Length; i++)
@@ -186,10 +152,12 @@ namespace SoftRender.App
                 //}
             }
 
+            averageElapsedMilliseconds.Push((int)frameTimer.ElapsedMilliseconds);
+
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
             {
-                var fps = (int)(iterations * 1000 / System.Math.Max(1, frameTimer.ElapsedMilliseconds));
-                var info = $"{frameTimer.ElapsedMilliseconds} ms / {iterations} iterations = {fps} fps";
+                var fps = (int)(renderer.Iterations * 1000 / System.Math.Max(1, frameTimer.ElapsedMilliseconds));
+                var info = $"{averageElapsedMilliseconds.GetAverage()} ms / {renderer.Iterations} iterations = {fps} fps";
                 g.DrawString(info, SystemFonts.DefaultFont, Brushes.White, 10, 17);
             }
 
