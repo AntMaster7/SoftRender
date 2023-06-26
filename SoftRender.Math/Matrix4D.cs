@@ -214,5 +214,23 @@
                 M21, M22, M23,
                 M31, M32, M33);
         }
+
+        public Matrix4D GetInverse()
+        {
+            // TODO: Somewhat lazy approach with overhead
+
+            var mat4x4 = new System.Numerics.Matrix4x4(
+                M11, M12, M13, M14,
+                M21, M22, M23, M24,
+                M31, M32, M33, M34,
+                M41, M42, M43, M44);
+
+            System.Numerics.Matrix4x4.Invert(mat4x4, out System.Numerics.Matrix4x4 inverted);
+
+            return new Matrix4D(inverted.M11, inverted.M12, inverted.M13, inverted.M14,
+                inverted.M21, inverted.M22, inverted.M23, inverted.M24,
+                inverted.M31, inverted.M32, inverted.M33, inverted.M34,
+                inverted.M41, inverted.M42, inverted.M43, inverted.M44);
+        }
     }
 }

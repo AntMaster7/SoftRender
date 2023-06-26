@@ -120,7 +120,7 @@ namespace SoftRender
             }
         }
 
-        public void Rasterize(ReadOnlySpan<Vector4D> triangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
+        public void Rasterize(Span<VertexShaderOutput> input, ISampler texture)
         {
             throw new NotImplementedException();
         }

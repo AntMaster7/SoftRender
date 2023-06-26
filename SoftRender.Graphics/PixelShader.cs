@@ -14,7 +14,7 @@ namespace SoftRender.Graphics
         
         public Vector256<float> Vs;
 
-        public Vector3DPacket LightDirs;
+        public Vector3DPacket FragmentPositions;
 
         public Vector3DPacket Normals;
 
@@ -24,7 +24,7 @@ namespace SoftRender.Graphics
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Run(PixelPacket pixel)
+        public void Run(PixelPacket pixel, VertexShaderOutput input)
         {
             sampler.Sample(Us, Vs, pixel);
 

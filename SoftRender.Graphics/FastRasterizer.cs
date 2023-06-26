@@ -122,7 +122,7 @@ namespace SoftRender
 
         public RasterizerMode Mode;
 
-        public Vector3D[] Normals = new Vector3D[3];
+        //public Vector3D[] Normals = new Vector3D[3];
 
         public int Face = -1;
 
@@ -155,14 +155,14 @@ namespace SoftRender
         /// 
         /// </summary>
         /// <param name="face">Face with viewport coordinates.</param>
-        public unsafe void Rasterize(ReadOnlySpan<Vector4D> triangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
+        public unsafe void Rasterize(Span<VertexShaderOutput> input, ISampler texture)
         {
             // First transform vertices into ndc and then into screen space
             var ndcTriangle = new Vector3D[3];
             var screenTriangle = new Vector2D[3];
             for (int index = 0; index < 3; index++)
             {
-                ndcTriangle[index] = triangle[index].PerspectiveDivide();
+                ndcTriangle[index] = input[index].ClipPosition.PerspectiveDivide();
                 screenTriangle[index] = vpt * ndcTriangle[index];
             }
 
@@ -171,7 +171,7 @@ namespace SoftRender
             {
                 if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
                 {
-                    FillTriangle(triangle, screenTriangle, attribs, texture);
+                    FillTriangle(input, screenTriangle, texture);
                 }
 
                 if ((Mode & RasterizerMode.Wireframe) == RasterizerMode.Wireframe)
@@ -183,14 +183,10 @@ namespace SoftRender
             }
         }
 
-        private void FillTriangle(ReadOnlySpan<Vector4D> clipSpaceTriangle, Vector2D[] screenTriangle, ReadOnlySpan<VertexAttributes> attribs, ISampler texture)
+        private void FillTriangle(Span<VertexShaderOutput> input, Vector2D[] screenTriangle, ISampler texture)
         {
             // Gets axis-aligned bounding box for our triangle (brute force approach)
-            var left = System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
-            var right = System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
-            var top = System.Math.Min(System.Math.Min(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
-            var bottom = System.Math.Max(System.Math.Max(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
-            var aabb = new Rectangle((int)left, (int)top, (int)(right - left), (int)(bottom - top));
+            Rectangle aabb = GetAABB(screenTriangle);
 
             var v1 = new PointPacket(screenTriangle[0].X, screenTriangle[0].Y);
             var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
@@ -204,18 +200,13 @@ namespace SoftRender
                 return;
             }
 
-            // Get light directions
-            var a0ld = new Vector3DPacket(attribs[0].LightDirection.X, attribs[0].LightDirection.Y, attribs[0].LightDirection.Z);
-            var a1ld = new Vector3DPacket(attribs[1].LightDirection.X, attribs[1].LightDirection.Y, attribs[1].LightDirection.Z);
-            var a2ld = new Vector3DPacket(attribs[2].LightDirection.X, attribs[2].LightDirection.Y, attribs[2].LightDirection.Z);
-
             // Get texture coordinates for later interpolation
-            var a0us = Vector256.Create(attribs[0].UV.X);
-            var a0vs = Vector256.Create(attribs[0].UV.Y);
-            var a1us = Vector256.Create(attribs[1].UV.X);
-            var a1vs = Vector256.Create(attribs[1].UV.Y);
-            var a2us = Vector256.Create(attribs[2].UV.X);
-            var a2vs = Vector256.Create(attribs[2].UV.Y);
+            var a0us = Vector256.Create(input[0].TexCoords.X);
+            var a0vs = Vector256.Create(input[0].TexCoords.Y);
+            var a1us = Vector256.Create(input[1].TexCoords.X);
+            var a1vs = Vector256.Create(input[1].TexCoords.Y);
+            var a2us = Vector256.Create(input[2].TexCoords.X);
+            var a2vs = Vector256.Create(input[2].TexCoords.Y);
 
             var sampler = (NearestSampler)texture;
             var pixel = new PixelPacket();
@@ -247,9 +238,9 @@ namespace SoftRender
                             var b3 = Ones - b1 - b2;
 
                             // Interpolate the depth value
-                            var z1 = Vector256.Create(clipSpaceTriangle[0].W);
-                            var z2 = Vector256.Create(clipSpaceTriangle[1].W);
-                            var z3 = Vector256.Create(clipSpaceTriangle[2].W);
+                            var z1 = Vector256.Create(input[0].ClipPosition.W);
+                            var z2 = Vector256.Create(input[1].ClipPosition.W);
+                            var z3 = Vector256.Create(input[2].ClipPosition.W);
                             var z1Inv = Ones / z1; // Avx.Reciprocal(z1);
                             var z2Inv = Ones / z2; // Avx.Reciprocal(z2);
                             var z3Inv = Ones / z3; // Avx.Reciprocal(z3);
@@ -279,17 +270,18 @@ namespace SoftRender
                             pixelShader.Vs = Avx.And(pixelShader.Vs, insideMask);
 
                             // TODO: Interpolate normals
-                            pixelShader.Normals = new Vector3DPacket(Normals[0].X, Normals[0].Y, Normals[0].Z);
-                            
+                            pixelShader.Normals = new Vector3DPacket(input[0].WorldNormal.X, input[0].WorldNormal.Y, input[0].WorldNormal.Z);
+
                             // Interpolate and normalize light directions
-                            lightDir.Xs = a0ld.Xs * b1pc + a1ld.Xs * b2pc + a2ld.Xs * b3pc;
-                            lightDir.Ys = a0ld.Ys * b1pc + a1ld.Ys * b2pc + a2ld.Ys * b3pc;
-                            lightDir.Zs = a0ld.Zs * b1pc + a1ld.Zs * b2pc + a2ld.Zs * b3pc;
-                            var sqrt = Avx.Sqrt(lightDir.Xs * lightDir.Xs + lightDir.Ys * lightDir.Ys + lightDir.Zs * lightDir.Zs);
-                            lightDir.Xs /= sqrt;
-                            lightDir.Ys /= sqrt;
-                            lightDir.Zs /= sqrt;
-                            pixelShader.LightDirs = lightDir;
+                            //lightDir.Xs = a0ld.Xs * b1pc + a1ld.Xs * b2pc + a2ld.Xs * b3pc;
+                            //lightDir.Ys = a0ld.Ys * b1pc + a1ld.Ys * b2pc + a2ld.Ys * b3pc;
+                            //lightDir.Zs = a0ld.Zs * b1pc + a1ld.Zs * b2pc + a2ld.Zs * b3pc;
+                            //var sqrt = Avx.Sqrt(lightDir.Xs * lightDir.Xs + lightDir.Ys * lightDir.Ys + lightDir.Zs * lightDir.Zs);
+                            //lightDir.Xs /= sqrt;
+                            //lightDir.Ys /= sqrt;
+                            //lightDir.Zs /= sqrt;
+
+                            pixelShader.FragmentPositions = lightDir;
 
                             pixelShader.Run(pixel);
 
@@ -315,6 +307,16 @@ namespace SoftRender
 
                 context.ResetXAndIncrementY();
             }
+        }
+
+        private static Rectangle GetAABB(Vector2D[] screenTriangle)
+        {
+            var left = System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
+            var right = System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
+            var top = System.Math.Min(System.Math.Min(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
+            var bottom = System.Math.Max(System.Math.Max(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
+            var aabb = new Rectangle((int)left, (int)top, (int)(right - left), (int)(bottom - top));
+            return aabb;
         }
 
         private void DrawLine(int x1, int y1, int x2, int y2, ColorRGB color)

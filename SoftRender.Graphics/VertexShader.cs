@@ -5,41 +5,42 @@ namespace SoftRender.Graphics
 {
     public struct VertexShaderOutput
     {
-        public Vector3D LightDirection;
+        public Vector4D ClipPosition;
 
-        public Vector4D OutputVertex;
+        public Vector3D WorldNormal;
 
-        public Vector3D OutputNormal;
+        public Vector3D WorldPosition;
+
+        public Vector2D TexCoords;
     }
 
     public class VertexShader
     {
-        private Matrix4D modelView;
+        private readonly Matrix4D modelMatrix;
+        private readonly Matrix4D viewMatrix;
+        private readonly Matrix4D projectionMatrix;
+        private readonly Matrix4D modelViewProjectionMatrix;
+        private readonly Matrix3D invModelMatrix;
 
-        private Matrix4D projection;
-
-        private Matrix3D invMvMatrix;
-
-        private Vector3D lightSource;
-
-        public VertexShader(Matrix4D modelView, Matrix4D projection, Matrix3D invMvMatrix, Vector3D lightSource)
+        public VertexShader(Matrix4D model, Matrix4D view, Matrix4D projection)
         {
-            this.modelView = modelView;
-            this.projection = projection;
-            this.invMvMatrix = invMvMatrix;
-            this.lightSource = lightSource;
+            modelMatrix = model;
+            viewMatrix = view;
+            projectionMatrix = projection;
+
+            modelViewProjectionMatrix = projectionMatrix * viewMatrix * modelMatrix;
+            invModelMatrix = modelMatrix.GetUpperLeft().Inverse();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public VertexShaderOutput Run(Vector3D v, Vector3D n)
+        public VertexShaderOutput Run(Vector3D vertex, VertexAttributes attributes)
         {
-            var viewPos = modelView * v;
-
             return new VertexShaderOutput()
             {
-                OutputVertex = projection * viewPos,
-                OutputNormal = n * invMvMatrix,
-                LightDirection = new Vector3D(lightSource.X - viewPos.X, lightSource.Y - viewPos.Y, lightSource.Z - viewPos.Z)
+                ClipPosition = modelViewProjectionMatrix * vertex,
+                WorldNormal = attributes.Normal * invModelMatrix,
+                WorldPosition = (modelMatrix * vertex).Truncate(),
+                TexCoords = attributes.UV,
             };
         }
     }
