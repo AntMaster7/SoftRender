@@ -23,8 +23,6 @@ namespace SoftRender.App
         {
             InitializeComponent();
 
-            
-
             //model = new Model();
             //model.Vertices = new Vector3D[3]
             //{
@@ -38,10 +36,6 @@ namespace SoftRender.App
             //    new VertexAttributes(0f, 0f, 0,0, 1),
             //    new VertexAttributes(1f, 0, 0,0, 1)
             //};
-
-            
-
-
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
@@ -64,7 +58,7 @@ namespace SoftRender.App
             var spotLight = new Light();
             spotLight.Transform = Matrix4D.CreateTranslate(0, 0, -2);
             scene.Lights.Add(spotLight);
-            
+
             scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
         }
 
@@ -117,6 +111,16 @@ namespace SoftRender.App
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
             // scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
+
+            if ((WinNative.GetKeyState(Keys.Down) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Lights[0].Transform *= Matrix4D.CreateTranslate(0, -0.01f, 0);
+            }
+            else if ((WinNative.GetKeyState(Keys.Up) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Lights[0].Transform *= Matrix4D.CreateTranslate(0, 0.01f, 0);
+            }
+
         }
 
         private unsafe void DrawScene()

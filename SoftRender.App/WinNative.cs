@@ -4,6 +4,8 @@ namespace SoftRender.App
 {
     public static class WinNative
     {
+        public const int KEY_PRESSED = 0x8000;
+
         [StructLayout(LayoutKind.Sequential)]
         public struct NativeMessage
         {
@@ -22,5 +24,8 @@ namespace SoftRender.App
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)] // https://pinvoke.net/default.aspx/user32/PeekMessage.html
         public static extern bool PeekMessage(out NativeMessage lpMsg, HandleRef hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+
+        [DllImport("user32.dll")]
+        public static extern short GetKeyState(Keys nVirtKey);
     }
 }
