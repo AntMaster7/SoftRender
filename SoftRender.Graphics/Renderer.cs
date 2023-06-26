@@ -1,6 +1,5 @@
 ﻿using SoftRender.SRMath;
 using System.Diagnostics;
-using System.Reflection;
 
 namespace SoftRender.Graphics
 {
@@ -9,7 +8,7 @@ namespace SoftRender.Graphics
         private readonly IRasterizer rasterizer;
         private readonly Stopwatch frameTimer = new Stopwatch();
 
-        public int Iterations { get; set; } = 100;
+        public int Iterations { get; set; } = 10;
 
         public VertexShader? VertexShader { get; set; }
 

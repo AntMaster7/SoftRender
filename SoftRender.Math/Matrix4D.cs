@@ -107,6 +107,15 @@
                 0.0f, 0.0f, 0.0f, 1.0f);
         }
 
+        public static Matrix4D CreateScale(float x, float y, float z)
+        {
+            return new Matrix4D(
+                x, 0.0f, 0.0f, 0.0f,
+                0.0f, y, 0.0f, 0.0f,
+                0.0f, 0.0f, z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f);
+        }
+
         public static Matrix4D operator +(Matrix4D m1, Matrix4D m2)
         {
             float m11 = m1.M11 + m2.M11;

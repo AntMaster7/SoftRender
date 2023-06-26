@@ -13,8 +13,8 @@ namespace SoftRender
 
         public ViewportTransform(int width, int height)
         {
-            halfWidth = width / 2;
-            halfHeight = height / 2;
+            halfWidth = (width - 1) / 2;
+            halfHeight = (height - 1) / 2;
         }
 
         public static Vector2D operator *(ViewportTransform t, Vector3D ndc)

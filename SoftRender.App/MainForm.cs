@@ -51,11 +51,20 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            var model = MeshLoader.Load("Suzanne.obj");
-            model.Texture = LoadTexture("brickwall-512x512.jpg");
-            model.Transform = Matrix4D.CreateTranslate(0, 0, -2);
-            scene.Models.Add(model);
+            //var suzanne = MeshLoader.Load("Suzanne.obj");
+            //suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
+            //suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
+            //scene.Models.Add(suzanne);
 
+            var plane = MeshLoader.Load("Plane.obj");
+            plane.Texture = LoadTexture("white-1x1.jpg");
+            plane.Transform = Matrix4D.CreateTranslate(0, -1, -3f) * Matrix4D.CreateScale(1.4f, 1, 2);
+            scene.Models.Add(plane);
+
+            var spotLight = new Light();
+            spotLight.Transform = Matrix4D.CreateTranslate(0, 0, -2);
+            scene.Lights.Add(spotLight);
+            
             scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
         }
 
@@ -107,7 +116,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
+            // scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
         }
 
         private unsafe void DrawScene()

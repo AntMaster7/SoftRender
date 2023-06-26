@@ -1,7 +1,9 @@
-﻿namespace SoftRender.Graphics
+﻿using SoftRender.SRMath;
+
+namespace SoftRender.Graphics
 {
     public class Light
     {
-        // TODO
+        public Matrix4D Transform;
     }
 }

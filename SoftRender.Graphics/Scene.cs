@@ -22,7 +22,8 @@ namespace SoftRender.Graphics
             {
                 var mv = model.Transform;
                 var invMv = mv.GetUpperLeft().Inverse();
-                renderer.VertexShader = new VertexShader(mv, projection, invMv, new Vector3D(3, 0, -1));
+                var lightPosition = Lights[0].Transform * new Vector3D();
+                renderer.VertexShader = new VertexShader(mv, projection, invMv, lightPosition.Truncate());
 
                 renderer.Texture = model.Texture;
 
