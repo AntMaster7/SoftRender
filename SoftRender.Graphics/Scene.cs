@@ -17,13 +17,14 @@ namespace SoftRender.Graphics
 
             var projection = Camera.CreateProjectionMatrix();
             var viewMatrix = Camera.Transform.GetInverse();
+            var lights = Lights.ToArray();
 
             foreach (var model in Models)
             {
                 renderer.Texture = model.Texture;
                 renderer.VertexShader = new VertexShader(model.Transform, viewMatrix, projection);
 
-                renderer.Render(model.Vertices, model.Attributes);
+                renderer.Render(model.Vertices, model.Attributes, lights);
             }
         }
     }

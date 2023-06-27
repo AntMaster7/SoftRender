@@ -19,7 +19,7 @@ namespace SoftRender.Graphics
             this.rasterizer = rasterizer;
         }
 
-        public TimeSpan Render(Vector3D[] Vertices, VertexAttributes[] Attributes)
+        public TimeSpan Render(Vector3D[] Vertices, VertexAttributes[] Attributes, Light[] lights)
         {
             Debug.Assert(Texture != null);
             Debug.Assert(VertexShader != null);
@@ -58,7 +58,7 @@ namespace SoftRender.Graphics
                 for (int i = 0; i < cs.Length; i += 3)
                 {
                     fastRasterizer.Face = i / 3;
-                    fastRasterizer.Rasterize(vso.Slice(i, 3), texture);
+                    fastRasterizer.Rasterize(vso.Slice(i, 3), lights, texture);
                 }
             }
 

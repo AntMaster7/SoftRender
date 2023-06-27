@@ -120,9 +120,6 @@ namespace SoftRender
             }
         }
 
-        public void Rasterize(Span<VertexShaderOutput> input, ISampler texture)
-        {
-            throw new NotImplementedException();
-        }
+        public void Rasterize(Span<VertexShaderOutput> input, Light[] lights, ISampler texture) => throw new NotImplementedException();
     }
 }

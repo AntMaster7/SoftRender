@@ -45,19 +45,19 @@ namespace SoftRender.App
 
         private void Main_Load(object sender, EventArgs e)
         {
-            //var suzanne = MeshLoader.Load("Suzanne.obj");
-            //suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
-            //suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
-            //scene.Models.Add(suzanne);
+            var suzanne = MeshLoader.Load("Suzanne.obj");
+            suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
+            suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
+            scene.Models.Add(suzanne);
 
             var plane = MeshLoader.Load("Plane.obj");
             plane.Texture = LoadTexture("white-1x1.jpg");
             plane.Transform = Matrix4D.CreateTranslate(0, -1, -3f) * Matrix4D.CreateScale(1.4f, 1, 2);
             scene.Models.Add(plane);
 
-            var spotLight = new Light();
-            spotLight.Transform = Matrix4D.CreateTranslate(0, 0, -2);
-            scene.Lights.Add(spotLight);
+            var spotLight1 = new Light();
+            spotLight1.Transform = Matrix4D.CreateTranslate(0, 2, -2);
+            scene.Lights.Add(spotLight1);
 
             scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
         }
@@ -147,6 +147,8 @@ namespace SoftRender.App
                 scene.Render(renderer);
 
                 frameTimer.Stop();
+
+
 
                 // frameTime = renderer.Render(model.Vertices, model.Attributes, sampler);
 
