@@ -185,7 +185,7 @@ namespace SoftRender
             }
         }
 
-        public unsafe void RasterizeZBufferOnly(Vector4D[] clipPositions)
+        public unsafe void RasterizeZBufferOnly(Span<Vector4D> clipPositions)
         {
             var ndcTriangle = new Vector3D[3];
             var screenTriangle = new Vector2D[3];

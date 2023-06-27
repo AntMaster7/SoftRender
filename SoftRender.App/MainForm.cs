@@ -1,9 +1,12 @@
 using SoftRender.Graphics;
 using SoftRender.SRMath;
+using System;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SoftRender.App
 {
@@ -13,6 +16,7 @@ namespace SoftRender.App
         private const int MaxFrameTime = 200;
 
         private Bitmap bitmap;
+        private Bitmap zBufferBitmap;
         private Stopwatch tickStopWatch = new Stopwatch();
         private float frameTimeAccumulator = 0;
         private MovingAverage averageElapsedMilliseconds = new MovingAverage(10);
@@ -39,6 +43,9 @@ namespace SoftRender.App
 
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
+
+            zBufferBitmap = new Bitmap(zBufferPictureBox.ClientSize.Width, zBufferPictureBox.ClientSize.Height);
+            zBufferPictureBox.Image = zBufferBitmap;
 
             Application.Idle += Application_Idle;
         }
@@ -148,8 +155,6 @@ namespace SoftRender.App
 
                 frameTimer.Stop();
 
-
-
                 // frameTime = renderer.Render(model.Vertices, model.Attributes, sampler);
 
                 // var simpleRasterizer = new SimpleRasterizer(ctx.Scan0, ctx.Stride, vpt);
@@ -167,6 +172,40 @@ namespace SoftRender.App
                 //}
             }
 
+            var zrasterizer = new FastRasterizer(null, 0,
+                new Size(zBufferBitmap.Width, zBufferBitmap.Height), new ViewportTransform(zBufferBitmap.Width, zBufferBitmap.Height));
+
+            var projection = scene.Camera.CreateProjectionMatrix();
+            var viewMatrix = scene.Camera.Transform.GetInverse();
+
+            foreach (var model in scene.Models)
+            {
+                var clipSpaceTriangle = new Vector4D[3];
+                var vertexShader = new VertexShader(model.Transform, viewMatrix, projection); ;
+
+                for (int i = 0; i < model.Vertices.Length; i += 3)
+                {
+                    for (int j = 0; j < 3; j++)
+                    {
+                        clipSpaceTriangle[j] = vertexShader.Run(model.Vertices[i + j], model.Attributes[i + j]).ClipPosition;
+                    }
+
+                    zrasterizer.RasterizeZBufferOnly(clipSpaceTriangle);
+                }
+            }
+
+            var zBufferBitmapData = zBufferBitmap.LockBits(new Rectangle(0, 0, zBufferBitmap.Width, zBufferBitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+
+            for (int i = 0; i < zBufferBitmap.Width * zBufferBitmap.Height; i++)
+            {
+                var scan0 = (byte*)zBufferBitmapData.Scan0;
+                *(scan0 + i * 3 + 0) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 1) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 2) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+            }
+
+            zBufferBitmap.UnlockBits(zBufferBitmapData);
+
             averageElapsedMilliseconds.Push((int)frameTimer.ElapsedMilliseconds);
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
@@ -177,6 +216,8 @@ namespace SoftRender.App
             }
 
             renderPictureBox.Invalidate();
+
+            zBufferPictureBox.Invalidate();
         }
 
         private ISampler LoadTexture(string filename)

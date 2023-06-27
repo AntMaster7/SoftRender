@@ -29,7 +29,9 @@
         private void InitializeComponent()
         {
             renderPictureBox = new PictureBox();
+            zBufferPictureBox = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)renderPictureBox).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)zBufferPictureBox).BeginInit();
             SuspendLayout();
             // 
             // renderPictureBox
@@ -42,11 +44,20 @@
             renderPictureBox.TabStop = false;
             renderPictureBox.MouseClick += RenderPictureBox_MouseClick;
             // 
+            // zBufferPictureBox
+            // 
+            zBufferPictureBox.Location = new Point(613, 377);
+            zBufferPictureBox.Name = "zBufferPictureBox";
+            zBufferPictureBox.Size = new Size(377, 323);
+            zBufferPictureBox.TabIndex = 1;
+            zBufferPictureBox.TabStop = false;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1002, 712);
+            Controls.Add(zBufferPictureBox);
             Controls.Add(renderPictureBox);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
@@ -54,11 +65,13 @@
             Text = "SoftRender - A Software Rasterizer";
             Load += Main_Load;
             ((System.ComponentModel.ISupportInitialize)renderPictureBox).EndInit();
+            ((System.ComponentModel.ISupportInitialize)zBufferPictureBox).EndInit();
             ResumeLayout(false);
         }
 
         #endregion
 
         private PictureBox renderPictureBox;
+        private PictureBox zBufferPictureBox;
     }
 }
