@@ -67,7 +67,6 @@ namespace SoftRender
             e1x = e1.Ys * Eights;
             e2x = e2.Ys * Eights;
             e3x = e3.Ys * Eights;
-            // var k = Vector256.Create((float)System.Math.Ceiling(box.Width / 8f));
             e1y = e1.Xs;
             e2y = e2.Xs;
             e3y = e3.Xs;
