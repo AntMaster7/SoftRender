@@ -39,14 +39,15 @@
             renderPictureBox.Dock = DockStyle.Fill;
             renderPictureBox.Location = new Point(0, 0);
             renderPictureBox.Name = "renderPictureBox";
-            renderPictureBox.Size = new Size(1002, 712);
+            renderPictureBox.Size = new Size(796, 712);
             renderPictureBox.TabIndex = 0;
             renderPictureBox.TabStop = false;
             renderPictureBox.MouseClick += RenderPictureBox_MouseClick;
             // 
             // zBufferPictureBox
             // 
-            zBufferPictureBox.Location = new Point(613, 377);
+            zBufferPictureBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            zBufferPictureBox.Location = new Point(407, 12);
             zBufferPictureBox.Name = "zBufferPictureBox";
             zBufferPictureBox.Size = new Size(377, 323);
             zBufferPictureBox.TabIndex = 1;
@@ -56,7 +57,7 @@
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1002, 712);
+            ClientSize = new Size(796, 712);
             Controls.Add(zBufferPictureBox);
             Controls.Add(renderPictureBox);
             FormBorderStyle = FormBorderStyle.FixedSingle;

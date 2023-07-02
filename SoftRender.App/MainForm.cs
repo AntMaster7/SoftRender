@@ -55,10 +55,10 @@ namespace SoftRender.App
             var suzanne = MeshLoader.Load("Suzanne.obj");
             suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
             suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
-            scene.Models.Add(suzanne);
+            // scene.Models.Add(suzanne);
 
             var plane = MeshLoader.Load("Plane.obj");
-            plane.Texture = LoadTexture("white-1x1.jpg");
+            plane.Texture = LoadTexture("uv_grid_opengl.jpg"); // LoadTexture("white-1x1.jpg");
             plane.Transform = Matrix4D.CreateTranslate(0, -1, -3f) * Matrix4D.CreateScale(1.4f, 1, 2);
             scene.Models.Add(plane);
 
@@ -67,6 +67,12 @@ namespace SoftRender.App
             scene.Lights.Add(spotLight1);
 
             scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
+        }
+
+        private void MainForm_Resize(object sender, EventArgs e)
+        {
+            bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
+            renderPictureBox.Image = bitmap;
         }
 
         private void Application_Idle(object? sender, EventArgs e)
@@ -128,6 +134,14 @@ namespace SoftRender.App
                 scene.Lights[0].Transform *= Matrix4D.CreateTranslate(0, 0.01f, 0);
             }
 
+            if ((WinNative.GetKeyState(Keys.Left) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Camera.Transform *= Matrix4D.CreateYaw(0.01f);
+            }
+            else if ((WinNative.GetKeyState(Keys.Right) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Camera.Transform *= Matrix4D.CreateYaw(-0.01f);
+            }
         }
 
         private unsafe void DrawScene()

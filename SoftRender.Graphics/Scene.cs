@@ -5,7 +5,7 @@ namespace SoftRender.Graphics
     // Implements a simplified scene with no hierarchy. Thats for later.
     public class Scene
     {
-        public Camera? Camera { get; set; }
+        public Camera Camera { get; set; }
 
         public List<Model> Models { get; private set; } = new List<Model>();
 

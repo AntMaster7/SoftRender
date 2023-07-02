@@ -67,21 +67,31 @@ namespace SoftRender
             e1x = e1.Ys * Eights;
             e2x = e2.Ys * Eights;
             e3x = e3.Ys * Eights;
-            var k = Vector256.Create((float)System.Math.Ceiling(box.Width / 8f));
-            e1y = e1.Xs + (e1.Ys * k * Eights);
-            e2y = e2.Xs + (e2.Ys * k * Eights);
-            e3y = e3.Xs + (e3.Ys * k * Eights);
+            // var k = Vector256.Create((float)System.Math.Ceiling(box.Width / 8f));
+            e1y = e1.Xs;
+            e2y = e2.Xs;
+            e3y = e3.Xs;
 
             AreaTimesTwo = -e2.Ys * e1.Xs + e2.Xs * e1.Ys;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector256<float> GetInsideMask()
+        public Vector256<float> GetInsideMask(int x)
         {
             var inside = Vector256.GreaterThanOrEqual(Function1, FastRasterizer.Zeros);
             inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, FastRasterizer.Zeros));
-            return Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, FastRasterizer.Zeros));
+            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, FastRasterizer.Zeros));
+
+            if (x < 0)
+            {
+                var insideView = Vector256.Create((float)x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7);
+                inside = Avx.And(inside, Vector256.GreaterThanOrEqual(insideView, FastRasterizer.Zeros));
+            }
+
+            return inside;
         }
+
+        private int incs = 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void IncrementX()
@@ -89,6 +99,8 @@ namespace SoftRender
             Function1 -= e1x;
             Function2 -= e2x;
             Function3 -= e3x;
+
+            incs++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -97,14 +109,18 @@ namespace SoftRender
             Function1 -= e1x * fac;
             Function2 -= e2x * fac;
             Function3 -= e3x * fac;
+
+            incs += fac;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetXAndIncrementY()
         {
-            Function1 += e1y;
-            Function2 += e2y;
-            Function3 += e3y;
+            Function1 += (e1y + e1x * incs);
+            Function2 += (e2y + e2x * incs);
+            Function3 += (e3y + e3x * incs);
+
+            incs = 0;
         }
     }
 
@@ -115,6 +131,7 @@ namespace SoftRender
         internal static readonly Vector256<float> Zeros = Vector256<float>.Zero;
         internal static readonly Vector256<float> Ones = Vector256.Create(1f);
 
+        private readonly Size viewportSize;
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int frameBufferStride;
@@ -128,15 +145,16 @@ namespace SoftRender
 
         public int Face = -1;
 
-        public FastRasterizer(byte* framebuffer, int stride, Size size, ViewportTransform vpt)
+        public FastRasterizer(byte* framebuffer, int stride, Size viewportSize, ViewportTransform vpt)
         {
             this.framebuffer = framebuffer;
             this.vpt = vpt;
+            this.viewportSize = viewportSize;
 
             frameBufferStride = stride;
 
-            zBufferStride = size.Width;
-            zBufferSize = size.Width * size.Height;
+            zBufferStride = this.viewportSize.Width;
+            zBufferSize = this.viewportSize.Width * this.viewportSize.Height;
             zBuffer = (float*)Marshal.AllocHGlobal(zBufferSize * sizeof(float));
 
             ResetZBuffer();
@@ -228,11 +246,20 @@ namespace SoftRender
                     enter = false;
                     exit = false;
 
-                    for (int x = aabb.X; x < aabb.X + aabb.Width; x += 8)
+                    // Skip scanline outside of frame
+                    int leftX = aabb.X;
+                    if (leftX < 0)
+                    {
+                        var k = leftX / 8;
+                        leftX -= k * 8;
+                        context.IncrementX(-k);
+                    }
+
+                    for (int x = leftX; x < aabb.X + aabb.Width; x += 8)
                     {
                         if (!exit)
                         {
-                            var insideMask = context.GetInsideMask();
+                            var insideMask = context.GetInsideMask(x);
 
                             if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
                             {
@@ -329,12 +356,20 @@ namespace SoftRender
                 enter = false;
                 exit = false;
 
-                for (int x = aabb.X; x < aabb.X + aabb.Width; x += 8)
+                // Skip scanline outside of frame
+                int leftX = aabb.X;
+                if(leftX < 0)
+                {
+                    var k = leftX / 8;
+                    leftX -= k * 8;
+                    context.IncrementX(-k);
+                }
+
+                for (int x = leftX; x < aabb.X + aabb.Width; x += 8)
                 {
                     if (!exit)
                     {
-                        var insideMask = context.GetInsideMask();
-
+                        var insideMask = context.GetInsideMask(x);
                         if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
                         {
                             enter = true;
@@ -350,9 +385,9 @@ namespace SoftRender
 
                             // Update z-Buffer
                             var zBufferOffset = y * zBufferStride + x;
-                            var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
-                            var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
-                            zBufferValue = Avx.Max(zBufferValue, z);
+                            var zBufferValue  = Vector256.Load(zBuffer + zBufferOffset);
+                            var zBufferMask   = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
+                            zBufferValue      = Avx.Max(zBufferValue, z);
                             Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
 
                             // Apply z-Buffer
@@ -404,13 +439,23 @@ namespace SoftRender
             }
         }
 
-        private static Rectangle GetAABB(Vector2D[] screenTriangle)
+        private Rectangle GetAABB(Vector2D[] screenTriangle)
         {
-            var left = System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
-            var right = System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
-            var top = System.Math.Min(System.Math.Min(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
-            var bottom = System.Math.Max(System.Math.Max(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
-            var aabb = new Rectangle((int)left, (int)top, (int)(right - left), (int)(bottom - top));
+            var left = (int)System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
+            var right = (int)System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
+            var top = (int)System.Math.Min(System.Math.Min(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
+            var bottom = (int)System.Math.Max(System.Math.Max(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
+            
+            var width = (right - left);
+            var height = (bottom - top);
+            var shoot = top + height - viewportSize.Height;
+            if(shoot > 0)
+            {
+                height -= shoot;
+            }
+
+            var aabb = new Rectangle(left, top, width, height);
+            
             return aabb;
         }
 
