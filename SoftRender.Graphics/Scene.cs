@@ -1,12 +1,11 @@
-﻿using SoftRender.SRMath;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace SoftRender.Graphics
 {
     // Implements a simplified scene with no hierarchy. Thats for later.
     public class Scene
     {
-        public Camera? Camera { get; set; }
+        public Camera Camera { get; set; }
 
         public List<Model> Models { get; private set; } = new List<Model>();
 
@@ -17,17 +16,15 @@ namespace SoftRender.Graphics
             Debug.Assert(Camera != null);
 
             var projection = Camera.CreateProjectionMatrix();
+            var viewMatrix = Camera.Transform.GetInverse();
+            var lights = Lights.ToArray();
 
             foreach (var model in Models)
             {
-                var mv = model.Transform;
-                var invMv = mv.GetUpperLeft().Inverse();
-                var lightPosition = Lights[0].Transform * new Vector3D();
-                renderer.VertexShader = new VertexShader(mv, projection, invMv, lightPosition.Truncate());
-
                 renderer.Texture = model.Texture;
+                renderer.VertexShader = new VertexShader(model.Transform, viewMatrix, projection);
 
-                renderer.Render(model.Vertices, model.Attributes);
+                renderer.Render(model.Vertices, model.Attributes, lights);
             }
         }
     }

@@ -8,7 +8,7 @@ namespace SoftRender.Graphics
         private readonly IRasterizer rasterizer;
         private readonly Stopwatch frameTimer = new Stopwatch();
 
-        public int Iterations { get; set; } = 10;
+        public int Iterations { get; set; } = 100;
 
         public VertexShader? VertexShader { get; set; }
 
@@ -19,7 +19,7 @@ namespace SoftRender.Graphics
             this.rasterizer = rasterizer;
         }
 
-        public TimeSpan Render(Vector3D[] Vertices, VertexAttributes[] Attributes)
+        public TimeSpan Render(Vector3D[] Vertices, VertexAttributes[] Attributes, Light[] lights)
         {
             Debug.Assert(Texture != null);
             Debug.Assert(VertexShader != null);
@@ -28,6 +28,7 @@ namespace SoftRender.Graphics
             Span<Vector4D> cs = new Vector4D[Vertices.Length];
             Span<VertexAttributes> at = new VertexAttributes[Vertices.Length];
             Span<Vector3D> ns = new Vector3D[Vertices.Length];
+            Span<VertexShaderOutput> vso = new VertexShaderOutput[Vertices.Length];
 
             // allows for quicker access
             var vertexShader = VertexShader;
@@ -43,12 +44,7 @@ namespace SoftRender.Graphics
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    var vertexShaderOutput = vertexShader.Run(Vertices[i + j], Attributes[i + j].Normal);
-
-                    cs[i + j] = vertexShaderOutput.OutputVertex;
-                    ns[i + j] = vertexShaderOutput.OutputNormal;
-                    at[i + j] = Attributes[i + j];
-                    at[i + j].LightDirection = vertexShaderOutput.LightDirection;
+                    vso[i + j] = vertexShader.Run(Vertices[i + j], Attributes[i + j]);
                 }
             }
 
@@ -61,9 +57,8 @@ namespace SoftRender.Graphics
             {
                 for (int i = 0; i < cs.Length; i += 3)
                 {
-                    fastRasterizer.Normals[0] = ns[i];
                     fastRasterizer.Face = i / 3;
-                    fastRasterizer.Rasterize(cs.Slice(i, 3), at.Slice(i, 3), texture);
+                    fastRasterizer.Rasterize(vso.Slice(i, 3), lights, texture);
                 }
             }
 

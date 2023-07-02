@@ -1,9 +1,7 @@
-﻿using System.Diagnostics;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-using System.Security.Cryptography;
 
 namespace SoftRender
 {
@@ -56,12 +54,12 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Sample(Vector256<float> us, Vector256<float> vs, PixelPacket pixel)
         {
-            var xs = Avx.Floor(us * w);
-            var ys = Avx.Floor(vs * h);
+            var xs = Avx.Floor(us * (w - 1));
+            var ys = Avx.Floor(vs * (h - 1));
 
             var offsets = Avx.ConvertToVector256Int32(xs * 4 + ys * stride);
 
-            fixed(byte* pTexture = texture)
+            fixed (byte* pTexture = texture)
             {
                 var lower = Avx2.GatherVector128((int*)pTexture, offsets.GetLower(), 1);
                 var upper = Avx2.GatherVector128((int*)pTexture, Avx.ExtractVector128(offsets, 1), 1);

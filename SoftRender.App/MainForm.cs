@@ -1,9 +1,12 @@
 using SoftRender.Graphics;
 using SoftRender.SRMath;
+using System;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SoftRender.App
 {
@@ -13,6 +16,7 @@ namespace SoftRender.App
         private const int MaxFrameTime = 200;
 
         private Bitmap bitmap;
+        private Bitmap zBufferBitmap;
         private Stopwatch tickStopWatch = new Stopwatch();
         private float frameTimeAccumulator = 0;
         private MovingAverage averageElapsedMilliseconds = new MovingAverage(10);
@@ -40,26 +44,35 @@ namespace SoftRender.App
             bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
             renderPictureBox.Image = bitmap;
 
+            zBufferBitmap = new Bitmap(zBufferPictureBox.ClientSize.Width, zBufferPictureBox.ClientSize.Height);
+            zBufferPictureBox.Image = zBufferBitmap;
+
             Application.Idle += Application_Idle;
         }
 
         private void Main_Load(object sender, EventArgs e)
         {
-            //var suzanne = MeshLoader.Load("Suzanne.obj");
-            //suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
-            //suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
-            //scene.Models.Add(suzanne);
+            var suzanne = MeshLoader.Load("Suzanne.obj");
+            suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
+            suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
+            // scene.Models.Add(suzanne);
 
             var plane = MeshLoader.Load("Plane.obj");
-            plane.Texture = LoadTexture("white-1x1.jpg");
+            plane.Texture = LoadTexture("uv_grid_opengl.jpg"); // LoadTexture("white-1x1.jpg");
             plane.Transform = Matrix4D.CreateTranslate(0, -1, -3f) * Matrix4D.CreateScale(1.4f, 1, 2);
             scene.Models.Add(plane);
 
-            var spotLight = new Light();
-            spotLight.Transform = Matrix4D.CreateTranslate(0, 0, -2);
-            scene.Lights.Add(spotLight);
+            var spotLight1 = new Light();
+            spotLight1.Transform = Matrix4D.CreateTranslate(0, 2, -2);
+            scene.Lights.Add(spotLight1);
 
             scene.Camera = new Camera((float)bitmap.Width / bitmap.Height);
+        }
+
+        private void MainForm_Resize(object sender, EventArgs e)
+        {
+            bitmap = new Bitmap(renderPictureBox.ClientSize.Width, renderPictureBox.ClientSize.Height);
+            renderPictureBox.Image = bitmap;
         }
 
         private void Application_Idle(object? sender, EventArgs e)
@@ -121,6 +134,14 @@ namespace SoftRender.App
                 scene.Lights[0].Transform *= Matrix4D.CreateTranslate(0, 0.01f, 0);
             }
 
+            if ((WinNative.GetKeyState(Keys.Left) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Camera.Transform *= Matrix4D.CreateYaw(0.01f);
+            }
+            else if ((WinNative.GetKeyState(Keys.Right) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
+            {
+                scene.Camera.Transform *= Matrix4D.CreateYaw(-0.01f);
+            }
         }
 
         private unsafe void DrawScene()
@@ -165,6 +186,40 @@ namespace SoftRender.App
                 //}
             }
 
+            var zrasterizer = new FastRasterizer(null, 0,
+                new Size(zBufferBitmap.Width, zBufferBitmap.Height), new ViewportTransform(zBufferBitmap.Width, zBufferBitmap.Height));
+
+            var projection = scene.Camera.CreateProjectionMatrix();
+            var viewMatrix = scene.Camera.Transform.GetInverse();
+
+            foreach (var model in scene.Models)
+            {
+                var clipSpaceTriangle = new Vector4D[3];
+                var vertexShader = new VertexShader(model.Transform, viewMatrix, projection); ;
+
+                for (int i = 0; i < model.Vertices.Length; i += 3)
+                {
+                    for (int j = 0; j < 3; j++)
+                    {
+                        clipSpaceTriangle[j] = vertexShader.Run(model.Vertices[i + j], model.Attributes[i + j]).ClipPosition;
+                    }
+
+                    zrasterizer.RasterizeZBufferOnly(clipSpaceTriangle);
+                }
+            }
+
+            var zBufferBitmapData = zBufferBitmap.LockBits(new Rectangle(0, 0, zBufferBitmap.Width, zBufferBitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+
+            for (int i = 0; i < zBufferBitmap.Width * zBufferBitmap.Height; i++)
+            {
+                var scan0 = (byte*)zBufferBitmapData.Scan0;
+                *(scan0 + i * 3 + 0) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 1) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 2) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+            }
+
+            zBufferBitmap.UnlockBits(zBufferBitmapData);
+
             averageElapsedMilliseconds.Push((int)frameTimer.ElapsedMilliseconds);
 
             using (var g = System.Drawing.Graphics.FromImage(bitmap))
@@ -175,6 +230,8 @@ namespace SoftRender.App
             }
 
             renderPictureBox.Invalidate();
+
+            zBufferPictureBox.Invalidate();
         }
 
         private ISampler LoadTexture(string filename)

@@ -32,6 +32,8 @@ namespace SoftRender
 
         public Vector3D Forward = new Vector3D(0, 0, -1);
 
+        public Matrix4D Transform = Matrix4D.CreateIdentity();
+
         public Camera(float aspectRatio, float fieldOfView = 90, float nearPlane = 0.05f, float farPlane = 100f)
         {
             AspectRatio = aspectRatio;
@@ -47,7 +49,7 @@ namespace SoftRender
         public Matrix4D CreateProjectionMatrix()
         {
             var fovRad = FieldOfView / 180 * System.Math.PI;
-            var focal = -1 / (float)System.Math.Tan(fovRad / 2);
+            var focal = -1 / (float)System.Math.Tan(fovRad * 0.5f);
             var reverseRange = NearPlane - FarPlane;
 
             var m = Matrix4D.CreateZero();

@@ -8,7 +8,7 @@ namespace SoftRender.Graphics
 
         public Vector3D Normal;
 
-        public Vector3D LightDirection;
+        public Vector3D WorldPosition;
 
         public VertexAttributes()
         {
