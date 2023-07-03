@@ -34,9 +34,9 @@ namespace SoftRender.Graphics
         }
 
         private static readonly Vector256<float> MaxColor = Vector256.Create(255f);
-
         private readonly NearestSampler sampler;
         private readonly LightPacket[] lights;
+        private readonly Vector3DPacket lightDirs = new();
 
         public PixelShader(NearestSampler sampler, LightPacket[] lights)
         {
@@ -66,7 +66,6 @@ namespace SoftRender.Graphics
             for (int i = 0; i < lights.Length; i++)
             {
                 var lightPos = lights[i];
-                var lightDirs = new Vector3DPacket();
 
                 var illum = Vector256.Create(0.9f);
                 lightDirs.Xs = lightPos.Xs - input.WorldPositions.Xs;

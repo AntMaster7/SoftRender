@@ -2,7 +2,6 @@
 using SoftRender.SRMath;
 using System.Drawing;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
@@ -141,13 +140,12 @@ namespace SoftRender
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int frameBufferStride;
+
         public readonly int zBufferSize;
         public readonly float* zBuffer;
         public readonly int zBufferStride;
 
         public RasterizerMode Mode;
-
-        //public Vector3D[] Normals = new Vector3D[3];
 
         public int Face = -1;
 
@@ -161,19 +159,19 @@ namespace SoftRender
 
             zBufferStride = this.viewportSize.Width;
             zBufferSize = this.viewportSize.Width * this.viewportSize.Height;
-            zBuffer = (float*)Marshal.AllocHGlobal(zBufferSize * sizeof(float));
+            zBuffer = (float*)MemoryPoolSlim.Shared.Rent(zBufferSize * sizeof(float));
 
             ResetZBuffer();
         }
 
         ~FastRasterizer()
         {
-            Marshal.FreeHGlobal((nint)zBuffer);
+            MemoryPoolSlim.Shared.Return((IntPtr)zBuffer);
         }
 
         public void Dispose()
         {
-            Marshal.FreeHGlobal((nint)zBuffer);
+            MemoryPoolSlim.Shared.Return((IntPtr)zBuffer);
             GC.SuppressFinalize(this);
         }
 
@@ -364,7 +362,7 @@ namespace SoftRender
 
                 // Skip scanline outside of frame
                 int leftX = aabb.X;
-                if(leftX < 0)
+                if (leftX < 0)
                 {
                     var k = leftX / 8;
                     leftX -= k * 8;
@@ -391,9 +389,9 @@ namespace SoftRender
 
                             // Update z-Buffer
                             var zBufferOffset = y * zBufferStride + x;
-                            var zBufferValue  = Vector256.Load(zBuffer + zBufferOffset);
-                            var zBufferMask   = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
-                            zBufferValue      = Avx.Max(zBufferValue, z);
+                            var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
+                            var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
+                            zBufferValue = Avx.Max(zBufferValue, z);
                             Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
 
                             // Apply z-Buffer
@@ -451,17 +449,17 @@ namespace SoftRender
             var right = (int)System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
             var top = (int)System.Math.Min(System.Math.Min(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
             var bottom = (int)System.Math.Max(System.Math.Max(screenTriangle[0].Y, screenTriangle[1].Y), screenTriangle[2].Y);
-            
+
             var width = (right - left);
             var height = (bottom - top);
             var shoot = top + height - viewportSize.Height;
-            if(shoot > 0)
+            if (shoot > 0)
             {
                 height -= shoot;
             }
 
             var aabb = new Rectangle(left, top, width, height);
-            
+
             return aabb;
         }
 
