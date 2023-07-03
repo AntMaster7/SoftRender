@@ -150,10 +150,10 @@ namespace SoftRender
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int frameBufferStride;
-        
+
         // object pooling
         private TriangleTextureCoordinates tc = new();
-        private PixelPacket pixel = new ();
+        private PixelPacket pixel = new();
 
         public readonly int zBufferSize;
         public readonly float* zBuffer;
@@ -319,7 +319,6 @@ namespace SoftRender
             }
         }
 
-
         private void FillTriangle(Span<VertexShaderOutput> input, Vector2D[] screenTriangle, PixelShader pixelShader)
         {
             // Gets axis-aligned bounding box for our triangle (brute force approach)
@@ -353,7 +352,6 @@ namespace SoftRender
             var z3Inv = Vector256.Create(1 / input[2].ClipPosition.W);
 
             bool enter;
-            bool exit;
 
             var pixelShaderInput = new PixelShaderInput();
             pixelShaderInput.WorldPositions = new Vector3DPacket();
@@ -363,7 +361,6 @@ namespace SoftRender
             for (int y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
                 enter = false;
-                exit = false;
 
                 // Skip scanline outside of frame
                 int leftX = aabb.X;
@@ -376,65 +373,56 @@ namespace SoftRender
 
                 for (int x = leftX; x < aabb.X + aabb.Width; x += 8)
                 {
-                    if (!exit)
+                    var insideMask = context.GetInsideMask(x);
+                    if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
                     {
-                        var insideMask = context.GetInsideMask(x);
-                        if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
-                        {
-                            enter = true;
+                        enter = true;
 
-                            // Calculate barycentric coordinates
-                            var b1 = context.Function2 / context.AreaTimesTwo;
-                            var b2 = context.Function3 / context.AreaTimesTwo;
-                            var b3 = Ones - b1 - b2;
+                        // Calculate barycentric coordinates
+                        var b1 = context.Function2 / context.AreaTimesTwo;
+                        var b2 = context.Function3 / context.AreaTimesTwo;
+                        var b3 = Ones - b1 - b2;
 
-                            // Interpolate the depth value
-                            var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                            var z = Avx.Reciprocal(zInv);
+                        // Interpolate the depth value
+                        var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
+                        var z = Avx.Reciprocal(zInv);
 
-                            // Update z-Buffer
-                            var zBufferOffset = y * zBufferStride + x;
-                            var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
-                            var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
-                            zBufferValue = Avx.Max(zBufferValue, z);
-                            Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
+                        // Update z-Buffer
+                        var zBufferOffset = y * zBufferStride + x;
+                        var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
+                        var zBufferMask = Avx.Compare(z, zBufferValue, FloatComparisonMode.OrderedGreaterThanNonSignaling);
+                        zBufferValue = Avx.Max(zBufferValue, z);
+                        Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
 
-                            // Apply z-Buffer
-                            insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
+                        // Apply z-Buffer
+                        insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
 
-                            // Calculate perspective-correct barycentric coordinates
-                            var b1pc = z / z1 * b1;
-                            var b2pc = z / z2 * b2;
-                            var b3pc = Avx.Subtract(Ones, b1pc);
-                            b3pc = Avx.Subtract(b3pc, b2pc);
+                        // Calculate perspective-correct barycentric coordinates
+                        var b1pc = z / z1 * b1;
+                        var b2pc = z / z2 * b2;
+                        var b3pc = Avx.Subtract(Ones, b1pc);
+                        b3pc = Avx.Subtract(b3pc, b2pc);
 
-                            // Interpolate texture coordinates
-                            pixelShaderInput.TexCoords.Xs = Avx.And(b1pc * tc.a0us + b2pc * tc.a1us + b3pc * tc.a2us, insideMask);
-                            pixelShaderInput.TexCoords.Ys = Avx.And(b1pc * tc.a0vs + b2pc * tc.a1vs + b3pc * tc.a2vs, insideMask);
+                        // Interpolate texture coordinates
+                        pixelShaderInput.TexCoords.Xs = Avx.And(b1pc * tc.a0us + b2pc * tc.a1us + b3pc * tc.a2us, insideMask);
+                        pixelShaderInput.TexCoords.Ys = Avx.And(b1pc * tc.a0vs + b2pc * tc.a1vs + b3pc * tc.a2vs, insideMask);
 
-                            // Interpolate normals
-                            pixelShaderInput.WorldNormals.Xs = b1pc * input[0].WorldNormal.X + b2pc * input[1].WorldNormal.X + b3pc * input[2].WorldNormal.X;
-                            pixelShaderInput.WorldNormals.Ys = b1pc * input[0].WorldNormal.Y + b2pc * input[1].WorldNormal.Y + b3pc * input[2].WorldNormal.Y;
-                            pixelShaderInput.WorldNormals.Zs = b1pc * input[0].WorldNormal.Z + b2pc * input[1].WorldNormal.Z + b3pc * input[2].WorldNormal.Z;
+                        // Interpolate normals
+                        pixelShaderInput.WorldNormals.Xs = b1pc * input[0].WorldNormal.X + b2pc * input[1].WorldNormal.X + b3pc * input[2].WorldNormal.X;
+                        pixelShaderInput.WorldNormals.Ys = b1pc * input[0].WorldNormal.Y + b2pc * input[1].WorldNormal.Y + b3pc * input[2].WorldNormal.Y;
+                        pixelShaderInput.WorldNormals.Zs = b1pc * input[0].WorldNormal.Z + b2pc * input[1].WorldNormal.Z + b3pc * input[2].WorldNormal.Z;
 
-                            // Interpolate world positions
-                            pixelShaderInput.WorldPositions.Xs = b1pc * input[0].WorldPosition.X + b2pc * input[1].WorldPosition.X + b3pc * input[2].WorldPosition.X;
-                            pixelShaderInput.WorldPositions.Ys = b1pc * input[0].WorldPosition.Y + b2pc * input[1].WorldPosition.Y + b3pc * input[2].WorldPosition.Y;
-                            pixelShaderInput.WorldPositions.Zs = b1pc * input[0].WorldPosition.Z + b2pc * input[1].WorldPosition.Z + b3pc * input[2].WorldPosition.Z;
+                        // Interpolate world positions
+                        pixelShaderInput.WorldPositions.Xs = b1pc * input[0].WorldPosition.X + b2pc * input[1].WorldPosition.X + b3pc * input[2].WorldPosition.X;
+                        pixelShaderInput.WorldPositions.Ys = b1pc * input[0].WorldPosition.Y + b2pc * input[1].WorldPosition.Y + b3pc * input[2].WorldPosition.Y;
+                        pixelShaderInput.WorldPositions.Zs = b1pc * input[0].WorldPosition.Z + b2pc * input[1].WorldPosition.Z + b3pc * input[2].WorldPosition.Z;
 
-                            pixelShader.Run(pixel, pixelShaderInput);
+                        pixelShader.Run(pixel, pixelShaderInput);
 
-                            var offset = y * frameBufferStride + x * BytesPerPixel;
-                            pixel.StoreInterleaved(framebuffer + offset, insideMask);
-                        }
-                        else if (enter)
-                        {
-                            exit = true;
-                        }
-
-                        context.IncrementX();
+                        var offset = y * frameBufferStride + x * BytesPerPixel;
+                        pixel.StoreInterleaved(framebuffer + offset, insideMask);
                     }
-                    else // basically some useless optimization
+                    else if (enter)
                     {
                         var r = aabb.X + aabb.Width - x;
                         var rm = (int)System.Math.Ceiling((float)r / 8);
@@ -442,6 +430,7 @@ namespace SoftRender
                         break;
                     }
 
+                    context.IncrementX();
                 }
 
                 context.ResetXAndIncrementY();
