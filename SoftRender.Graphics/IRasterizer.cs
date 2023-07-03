@@ -4,6 +4,6 @@ namespace SoftRender
 {
     public interface IRasterizer
     {
-        void Rasterize(Span<VertexShaderOutput> input, Light[] lights, ISampler texture);
+        void Rasterize(Span<VertexShaderOutput> input, PixelShader pixelShader);
     }
 }

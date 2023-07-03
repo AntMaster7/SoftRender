@@ -12,7 +12,7 @@ namespace SoftRender.Graphics
 
         public VertexShader? VertexShader { get; set; }
 
-        public ISampler? Texture { get; set; }
+        public PixelShader? PixelShader { get; set; }
 
         public Renderer(IRasterizer rasterizer)
         {
@@ -21,18 +21,14 @@ namespace SoftRender.Graphics
 
         public TimeSpan Render(Vector3D[] Vertices, VertexAttributes[] Attributes, Light[] lights)
         {
-            Debug.Assert(Texture != null);
             Debug.Assert(VertexShader != null);
+            Debug.Assert(PixelShader != null);
             Debug.Assert(Vertices.Length % 3 == 0);
 
-            Span<Vector4D> cs = new Vector4D[Vertices.Length];
-            Span<VertexAttributes> at = new VertexAttributes[Vertices.Length];
-            Span<Vector3D> ns = new Vector3D[Vertices.Length];
             Span<VertexShaderOutput> vso = new VertexShaderOutput[Vertices.Length];
 
             // allows for quicker access
             var vertexShader = VertexShader;
-            var texture = Texture;
 
             // var opts = new ParallelOptions
             // {
@@ -55,10 +51,10 @@ namespace SoftRender.Graphics
 
             for (int iter = 0; iter < Iterations; iter++)
             {
-                for (int i = 0; i < cs.Length; i += 3)
+                for (int i = 0; i < Vertices.Length; i += 3)
                 {
                     fastRasterizer.Face = i / 3;
-                    fastRasterizer.Rasterize(vso.Slice(i, 3), lights, texture);
+                    fastRasterizer.Rasterize(vso.Slice(i, 3), PixelShader);
                 }
             }
 

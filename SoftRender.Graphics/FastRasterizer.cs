@@ -129,6 +129,16 @@ namespace SoftRender
         }
     }
 
+    struct TriangleTextureCoordinates
+    {
+        public Vector256<float> a0us;
+        public Vector256<float> a0vs;
+        public Vector256<float> a1us;
+        public Vector256<float> a1vs;
+        public Vector256<float> a2us;
+        public Vector256<float> a2vs;
+    }
+
     public unsafe sealed class FastRasterizer : IRasterizer, IDisposable
     {
         private const byte BytesPerPixel = 3;
@@ -140,6 +150,10 @@ namespace SoftRender
         private readonly ViewportTransform vpt;
         private readonly byte* framebuffer;
         private readonly int frameBufferStride;
+        
+        // object pooling
+        private TriangleTextureCoordinates tc = new();
+        private PixelPacket pixel = new ();
 
         public readonly int zBufferSize;
         public readonly float* zBuffer;
@@ -179,7 +193,7 @@ namespace SoftRender
         /// 
         /// </summary>
         /// <param name="face">Face with viewport coordinates.</param>
-        public unsafe void Rasterize(Span<VertexShaderOutput> input, Light[] lights, ISampler texture)
+        public unsafe void Rasterize(Span<VertexShaderOutput> input, PixelShader pixelShader)
         {
             // First transform vertices into ndc and then into screen space
             var ndcTriangle = new Vector3D[3];
@@ -195,7 +209,7 @@ namespace SoftRender
             {
                 if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
                 {
-                    FillTriangle(input, screenTriangle, lights, texture);
+                    FillTriangle(input, screenTriangle, pixelShader);
                 }
 
                 if ((Mode & RasterizerMode.Wireframe) == RasterizerMode.Wireframe)
@@ -305,7 +319,8 @@ namespace SoftRender
             }
         }
 
-        private void FillTriangle(Span<VertexShaderOutput> input, Vector2D[] screenTriangle, Light[] lights, ISampler texture)
+
+        private void FillTriangle(Span<VertexShaderOutput> input, Vector2D[] screenTriangle, PixelShader pixelShader)
         {
             // Gets axis-aligned bounding box for our triangle (brute force approach)
             Rectangle aabb = GetAABB(screenTriangle);
@@ -323,12 +338,12 @@ namespace SoftRender
             }
 
             // Get texture coordinates for later interpolation
-            var a0us = Vector256.Create(input[0].TexCoords.X);
-            var a0vs = Vector256.Create(input[0].TexCoords.Y);
-            var a1us = Vector256.Create(input[1].TexCoords.X);
-            var a1vs = Vector256.Create(input[1].TexCoords.Y);
-            var a2us = Vector256.Create(input[2].TexCoords.X);
-            var a2vs = Vector256.Create(input[2].TexCoords.Y);
+            tc.a0us = Vector256.Create(input[0].TexCoords.X);
+            tc.a0vs = Vector256.Create(input[0].TexCoords.Y);
+            tc.a1us = Vector256.Create(input[1].TexCoords.X);
+            tc.a1vs = Vector256.Create(input[1].TexCoords.Y);
+            tc.a2us = Vector256.Create(input[2].TexCoords.X);
+            tc.a2vs = Vector256.Create(input[2].TexCoords.Y);
 
             // Get inverse depths
             var z1 = Vector256.Create(input[0].ClipPosition.W);
@@ -337,19 +352,9 @@ namespace SoftRender
             var z2Inv = Avx.Reciprocal(z2);
             var z3Inv = Vector256.Create(1 / input[2].ClipPosition.W);
 
-            var sampler = (NearestSampler)texture;
-            var pixel = new PixelPacket();
             bool enter;
             bool exit;
 
-            var lightPackets = new LightPacket[lights.Count()];
-            for (int i = 0; i < lights.Count(); i++)
-            {
-                var lightPos = lights[i].GetWorldPosition();
-                lightPackets[i] = new LightPacket(lightPos.X, lightPos.Y, lightPos.Z);
-            }
-
-            var pixelShader = new PixelShader(sampler, lightPackets);
             var pixelShaderInput = new PixelShaderInput();
             pixelShaderInput.WorldPositions = new Vector3DPacket();
             pixelShaderInput.TexCoords = new Vector2DPacket();
@@ -404,8 +409,8 @@ namespace SoftRender
                             b3pc = Avx.Subtract(b3pc, b2pc);
 
                             // Interpolate texture coordinates
-                            pixelShaderInput.TexCoords.Xs = Avx.And(b1pc * a0us + b2pc * a1us + b3pc * a2us, insideMask);
-                            pixelShaderInput.TexCoords.Ys = Avx.And(b1pc * a0vs + b2pc * a1vs + b3pc * a2vs, insideMask);
+                            pixelShaderInput.TexCoords.Xs = Avx.And(b1pc * tc.a0us + b2pc * tc.a1us + b3pc * tc.a2us, insideMask);
+                            pixelShaderInput.TexCoords.Ys = Avx.And(b1pc * tc.a0vs + b2pc * tc.a1vs + b3pc * tc.a2vs, insideMask);
 
                             // Interpolate normals
                             pixelShaderInput.WorldNormals.Xs = b1pc * input[0].WorldNormal.X + b2pc * input[1].WorldNormal.X + b3pc * input[2].WorldNormal.X;
