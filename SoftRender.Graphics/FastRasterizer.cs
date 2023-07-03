@@ -1,6 +1,5 @@
 ﻿using SoftRender.Graphics;
 using SoftRender.SRMath;
-using System.Diagnostics.Metrics;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -21,6 +20,7 @@ namespace SoftRender
     internal struct RasterizerContextPacket
     {
         private static readonly Vector256<float> Eights = Vector256.Create((float)8);
+        private readonly float xRightClip;
 
         // Increments for the edge function accumulators
         private Vector256<float> e1x;
@@ -39,8 +39,10 @@ namespace SoftRender
         public Vector256<float> AreaTimesTwo;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RasterizerContextPacket(Rectangle box, PointPacket v1, PointPacket v2, PointPacket v3)
+        public RasterizerContextPacket(Rectangle box, int screenWidth, PointPacket v1, PointPacket v2, PointPacket v3)
         {
+            xRightClip = screenWidth - 8;
+
             var e1 = v1 - v2;
             var e2 = v2 - v3;
             var e3 = v3 - v1;
@@ -85,6 +87,11 @@ namespace SoftRender
             {
                 var insideView = Vector256.Create((float)x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7);
                 inside = Avx.And(inside, Vector256.GreaterThanOrEqual(insideView, FastRasterizer.Zeros));
+            }
+            else if (x > xRightClip)
+            {
+                var insideView = Vector256.Create((float)x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7);
+                inside = Avx.And(inside, Vector256.LessThanOrEqual(insideView, Vector256.Create(xRightClip)));
             }
 
             return inside;
@@ -222,7 +229,7 @@ namespace SoftRender
                 var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
                 var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
 
-                var context = new RasterizerContextPacket(aabb, v1, v2, v3);
+                var context = new RasterizerContextPacket(aabb, viewportSize.Width, v1, v2, v3);
 
                 // Check for degenerate triangle with zero area
                 if (Vector256.EqualsAny(Zeros, context.AreaTimesTwo))
@@ -309,7 +316,7 @@ namespace SoftRender
             var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
             var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
 
-            var context = new RasterizerContextPacket(aabb, v1, v2, v3);
+            var context = new RasterizerContextPacket(aabb, viewportSize.Width, v1, v2, v3);
 
             // Check for degenerate triangle with zero area
             if (Vector256.EqualsAny(Zeros, context.AreaTimesTwo))
