@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -54,10 +55,44 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Sample(Vector256<float> us, Vector256<float> vs, PixelPacket pixel)
         {
-            var xs = Avx.Floor(us * (w - 1));
-            var ys = Avx.Floor(vs * (h - 1));
+            // https://en.wikipedia.org/wiki/Bilinear_interpolation
 
-            var offsets = Avx.ConvertToVector256Int32(xs * 4 + ys * stride);
+            var x = us * (w - 1);
+            var y = vs * (h - 1);
+
+            var half = Vector256.Create(0.5f);
+            var shift = Vector256.Create(0.0001f);
+
+            var x1 = Avx.Floor(x - half) + half;
+            var x2 = Avx.Ceiling(x + shift + half) - half;
+            var y1 = Avx.Floor(y - half) + half;
+            var y2 = Avx.Ceiling(y + shift + half) - half;
+
+            var q = Avx.Reciprocal((x2 - x1) * (y2 - y1));
+
+            var a = x2 - x;
+            var b = y2 - y;
+            var c = x - x1;
+            var d = y - y1;
+            
+            var w11 = a * b * q;
+            var w12 = a * d * q;
+            var w21 = c * b * q;
+            var w22 = c * d * q;
+
+            var sum = w11 + w12 + w21 + w22;
+            Debug.Assert(Vector256.LessThanOrEqualAll(sum, Vector256.Create(1.001f)));
+            Debug.Assert(Vector256.GreaterThanOrEqualAll(sum, Vector256.Create(0.999f)));
+
+            if(Vector256.LessThanAll(sum, Vector256.Create(0.999f)))
+            {
+                throw new InvalidOperationException();
+            }
+
+            var _xs = Avx.Floor(us * (w - 1));
+            var _ys = Avx.Floor(vs * (h - 1));
+
+            var offsets = Avx.ConvertToVector256Int32(_xs * 4 + _ys * stride);
 
             fixed (byte* pTexture = texture)
             {
