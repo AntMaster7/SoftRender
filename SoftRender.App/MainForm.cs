@@ -246,7 +246,7 @@ namespace SoftRender.App
 
                 bitmap.UnlockBits(bitmapData);
 
-                return new NearestSampler(texture, bitmap.Size);
+                return new TextureSampler(texture, bitmap.Size);
             }
         }
 

@@ -29,7 +29,7 @@ namespace SoftRender.Graphics
             foreach (var model in Models)
             {
                 renderer.VertexShader = new VertexShader(model.Transform, viewMatrix, projection);
-                renderer.PixelShader = new PixelShader((NearestSampler)model.Texture, lightPackets);
+                renderer.PixelShader = new PixelShader((TextureSampler)model.Texture, lightPackets);
 
                 renderer.Render(model.Vertices, model.Attributes, lights);
             }

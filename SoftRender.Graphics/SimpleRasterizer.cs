@@ -75,7 +75,7 @@ namespace SoftRender
             int j = e2x + (e2y * aabb.Width);
             int k = e3x + (e3y * aabb.Width);
 
-            var sampler = (NearestSampler)texture;
+            var sampler = (TextureSampler)texture;
 
             for (y = aabb.Y; y < aabb.Y + aabb.Height - 1; y++)
             {

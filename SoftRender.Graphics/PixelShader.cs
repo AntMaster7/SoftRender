@@ -34,11 +34,11 @@ namespace SoftRender.Graphics
         }
 
         private static readonly Vector256<float> MaxColor = Vector256.Create(255f);
-        private readonly NearestSampler sampler;
+        private readonly TextureSampler sampler;
         private readonly LightPacket[] lights;
         private readonly Vector3DPacket lightDirs = new();
 
-        public PixelShader(NearestSampler sampler, LightPacket[] lights)
+        public PixelShader(TextureSampler sampler, LightPacket[] lights)
         {
             this.sampler = sampler;
             this.lights = lights;
