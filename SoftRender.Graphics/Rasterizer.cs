@@ -78,14 +78,14 @@ namespace SoftRender
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector256<float> GetInsideMask(int x)
         {
-            var inside = Vector256.GreaterThanOrEqual(Function1, FastRasterizer.Zeros);
-            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, FastRasterizer.Zeros));
-            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, FastRasterizer.Zeros));
+            var inside = Vector256.GreaterThanOrEqual(Function1, Rasterizer.Zeros);
+            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function2, Rasterizer.Zeros));
+            inside = Avx.And(inside, Vector256.GreaterThanOrEqual(Function3, Rasterizer.Zeros));
 
             if (x < 0)
             {
                 var insideView = Vector256.Create((float)x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7);
-                inside = Avx.And(inside, Vector256.GreaterThanOrEqual(insideView, FastRasterizer.Zeros));
+                inside = Avx.And(inside, Vector256.GreaterThanOrEqual(insideView, Rasterizer.Zeros));
             }
             else if (x > xRightClip)
             {
@@ -139,7 +139,7 @@ namespace SoftRender
         public Vector256<float> a2vs;
     }
 
-    public unsafe sealed class FastRasterizer : IRasterizer, IDisposable
+    public unsafe sealed class Rasterizer : IRasterizer, IDisposable
     {
         private const byte BytesPerPixel = 3;
 
@@ -163,7 +163,7 @@ namespace SoftRender
 
         public int Face = -1;
 
-        public FastRasterizer(byte* framebuffer, int stride, Size viewportSize, ViewportTransform vpt)
+        public Rasterizer(byte* framebuffer, int stride, Size viewportSize, ViewportTransform vpt)
         {
             this.framebuffer = framebuffer;
             this.vpt = vpt;
@@ -178,7 +178,7 @@ namespace SoftRender
             ResetZBuffer();
         }
 
-        ~FastRasterizer()
+        ~Rasterizer()
         {
             MemoryPoolSlim.Shared.Return((IntPtr)zBuffer);
         }
