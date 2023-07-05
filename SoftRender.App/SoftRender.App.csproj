@@ -7,12 +7,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <Title>SoftRender</Title>
+    <Title>SharpRender</Title>
     <Authors>Samuel S. Egger</Authors>
     <Company />
-    <Description>The windows app showcasing the software rasterizer.</Description>
+    <Description>App showcasing a software rasterizer.</Description>
     <Copyright>© 2023 Samuel S. Egger</Copyright>
-    <Product>SoftRender</Product>
+    <Product>SharpRender</Product>
   </PropertyGroup>
 
   <ItemGroup>

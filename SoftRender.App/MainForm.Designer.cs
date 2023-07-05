@@ -63,7 +63,7 @@
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             Name = "MainForm";
-            Text = "SoftRender - A Software Rasterizer";
+            Text = "SharpRender - A Software Rasterizer";
             Load += Main_Load;
             ((System.ComponentModel.ISupportInitialize)renderPictureBox).EndInit();
             ((System.ComponentModel.ISupportInitialize)zBufferPictureBox).EndInit();
