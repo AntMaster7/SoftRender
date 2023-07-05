@@ -46,7 +46,7 @@ namespace SoftRender
             for (int index = 0; index < 3; index++)
             {
                 ndcTriangle[index] = clipSpaceTriangle[index].PerspectiveDivide();
-                screenTriangle[0] = vpt * ndcTriangle[index];
+                //screenTriangle[0] = vpt * ndcTriangle[index];
             }
 
             var l = System.Math.Min(System.Math.Min(clipSpaceTriangle[0].X, clipSpaceTriangle[1].X), clipSpaceTriangle[2].X);

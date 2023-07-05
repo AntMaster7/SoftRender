@@ -19,8 +19,8 @@ namespace SoftRender.Benchmark
         {
             framebuffer = (byte*)Marshal.AllocHGlobal(Width * Height * 3);
 
-            fastRasterizer = new FastRasterizer(framebuffer, Width * 3);
-            slowRasterizer = new SimpleRasterizer(framebuffer, Width * 3);
+            //fastRasterizer = new Rasterizer(framebuffer, Width * 3);
+            //slowRasterizer = new SimpleRasterizer(framebuffer, Width * 3);
         }
 
         public void Dispose()
@@ -46,14 +46,14 @@ namespace SoftRender.Benchmark
         [ArgumentsSource(nameof(RandomFace))]
         public void FastRasterizer(Point[] face)
         {
-            fastRasterizer.Rasterize(face);
+            //fastRasterizer.Rasterize(face);
         }
 
         [Benchmark]
         [ArgumentsSource(nameof(RandomFace))]
         public void SlowRasterizer(Point[] face)
         {
-            slowRasterizer.Rasterize(face);
+            //slowRasterizer.Rasterize(face);
         }
     }
 }

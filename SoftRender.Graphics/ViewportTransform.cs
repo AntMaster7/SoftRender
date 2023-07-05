@@ -1,4 +1,4 @@
-﻿using SoftRender.SRMath;
+﻿using System.Runtime.CompilerServices;
 
 namespace SoftRender
 {
@@ -17,12 +17,10 @@ namespace SoftRender
             halfHeight = (height - 1) / 2;
         }
 
-        public static Vector2D operator *(ViewportTransform t, Vector3D ndc)
-        {
-            int x = (int)(ndc.X * t.halfWidth + t.halfWidth + 0.5);
-            int y = (int)(-ndc.Y * t.halfHeight + t.halfHeight + 0.5);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int MapX(float x) => (int)(x * halfWidth + halfWidth + 0.5);
 
-            return new Vector2D(x, y);
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int MapY(float y) => (int)(-y * halfHeight + halfHeight + 0.5);
     }
 }

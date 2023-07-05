@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-using System.Text;
 using static SoftRender.Graphics.PixelShader;
 
 namespace SoftRender
@@ -19,7 +18,16 @@ namespace SoftRender
     internal struct RasterizerContextPacket
     {
         private static readonly Vector256<float> Eights = Vector256.Create((float)8);
+
         private readonly float xRightClip;
+        private int xIncrements = 0;
+
+        public Vector256<float> z1;
+        public Vector256<float> z2;
+
+        private Vector256<float> z1Inv;
+        private Vector256<float> z2Inv;
+        private Vector256<float> z3Inv;
 
         // Increments for the edge function accumulators
         private Vector256<float> e1x;
@@ -38,9 +46,13 @@ namespace SoftRender
         public Vector256<float> AreaTimesTwo;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RasterizerContextPacket(Rectangle box, int screenWidth, PointPacket v1, PointPacket v2, PointPacket v3)
+        public RasterizerContextPacket(Rectangle box, int screenWidth, Vector3D[] screenTriangle)
         {
             xRightClip = screenWidth - 8;
+
+            var v1 = new PointPacket(screenTriangle[0].X, screenTriangle[0].Y);
+            var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
+            var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
 
             var e1 = v1 - v2;
             var e2 = v2 - v3;
@@ -73,6 +85,13 @@ namespace SoftRender
             e3y = e3.Xs;
 
             AreaTimesTwo = -e2.Ys * e1.Xs + e2.Xs * e1.Ys;
+
+            // Get inverse depths
+            z1 = Vector256.Create(screenTriangle[0].Z);
+            z2 = Vector256.Create(screenTriangle[1].Z);
+            z1Inv = Avx.Reciprocal(z1);
+            z2Inv = Avx.Reciprocal(z2);
+            z3Inv = Vector256.Create(1 / screenTriangle[2].Z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -96,8 +115,6 @@ namespace SoftRender
             return inside;
         }
 
-        private int incs = 0;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void IncrementX()
         {
@@ -105,7 +122,7 @@ namespace SoftRender
             Function2 -= e2x;
             Function3 -= e3x;
 
-            incs++;
+            xIncrements++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,18 +132,30 @@ namespace SoftRender
             Function2 -= e2x * fac;
             Function3 -= e3x * fac;
 
-            incs += fac;
+            xIncrements += fac;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetXAndIncrementY()
         {
-            Function1 += (e1y + e1x * incs);
-            Function2 += (e2y + e2x * incs);
-            Function3 += (e3y + e3x * incs);
+            Function1 += (e1y + e1x * xIncrements);
+            Function2 += (e2y + e2x * xIncrements);
+            Function3 += (e3y + e3x * xIncrements);
 
-            incs = 0;
+            xIncrements = 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void GetBarycentricCoordinates(Vector3DPacket barycentric)
+        {
+            barycentric.Xs = Function2 / AreaTimesTwo;
+            barycentric.Ys = Function3 / AreaTimesTwo;
+            barycentric.Zs = Rasterizer.Ones - barycentric.Xs - barycentric.Ys;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vector256<float> InterpolateDepth(Vector3DPacket barycentric) =>
+            Avx.Reciprocal(z1Inv * barycentric.Xs + z2Inv * barycentric.Ys + z3Inv * barycentric.Zs);
     }
 
     struct TriangleTextureCoordinates
@@ -154,6 +183,8 @@ namespace SoftRender
         // object pooling
         private TriangleTextureCoordinates tc = new();
         private PixelPacket pixel = new();
+        private Vector3D[] screenTriangle = new Vector3D[3];
+        private Vector3DPacket barycentric = new Vector3DPacket();
 
         public readonly int zBufferSize;
         public readonly float* zBuffer;
@@ -195,18 +226,10 @@ namespace SoftRender
         /// <param name="face">Face with viewport coordinates.</param>
         public unsafe void Rasterize(Span<VertexShaderOutput> input, PixelShader pixelShader)
         {
-            // First transform vertices into ndc and then into screen space
-            var ndcTriangle = new Vector3D[3];
-            var screenTriangle = new Vector2D[3];
-            for (int index = 0; index < 3; index++)
+            if (IsFrontFace(ref input[0].ClipPosition, ref input[1].ClipPosition, ref input[2].ClipPosition)) // Back-face culling
             {
-                ndcTriangle[index] = input[index].ClipPosition.PerspectiveDivide();
-                screenTriangle[index] = vpt * ndcTriangle[index];
-            }
+                MapScreenTriangle(ref input[0].ClipPosition, ref input[1].ClipPosition, ref input[2].ClipPosition);
 
-            var normal = Vector3D.CrossProduct(ndcTriangle[1] - ndcTriangle[0], ndcTriangle[2] - ndcTriangle[0]);
-            if (Vector3D.DotProduct(normal, ndcTriangle[0]) < 0)
-            {
                 if ((Mode & RasterizerMode.Fill) == RasterizerMode.Fill)
                 {
                     FillTriangle(input, screenTriangle, pixelShader);
@@ -223,25 +246,14 @@ namespace SoftRender
 
         public unsafe void RasterizeZBufferOnly(Span<Vector4D> clipPositions)
         {
-            var ndcTriangle = new Vector3D[3];
-            var screenTriangle = new Vector2D[3];
-            for (int index = 0; index < 3; index++)
+            if (IsFrontFace(ref clipPositions[0], ref clipPositions[1], ref clipPositions[2]))
             {
-                ndcTriangle[index] = clipPositions[index].PerspectiveDivide();
-                screenTriangle[index] = vpt * ndcTriangle[index];
-            }
+                MapScreenTriangle(ref clipPositions[0], ref clipPositions[1], ref clipPositions[2]);
 
-            var normal = Vector3D.CrossProduct(ndcTriangle[1] - ndcTriangle[0], ndcTriangle[2] - ndcTriangle[0]);
-            if (Vector3D.DotProduct(normal, ndcTriangle[0]) < 0)
-            {
                 // Gets axis-aligned bounding box for our triangle (brute force approach)
                 Rectangle aabb = GetAABB(screenTriangle);
 
-                var v1 = new PointPacket(screenTriangle[0].X, screenTriangle[0].Y);
-                var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
-                var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
-
-                var context = new RasterizerContextPacket(aabb, viewportSize.Width, v1, v2, v3);
+                var context = new RasterizerContextPacket(aabb, viewportSize.Width, screenTriangle);
 
                 // Check for degenerate triangle with zero area
                 if (Vector256.EqualsAny(Zeros, context.AreaTimesTwo))
@@ -249,20 +261,11 @@ namespace SoftRender
                     return;
                 }
 
-                // Get inverse depths
-                var z1 = Vector256.Create(clipPositions[0].W);
-                var z2 = Vector256.Create(clipPositions[1].W);
-                var z1Inv = Avx.Reciprocal(z1);
-                var z2Inv = Avx.Reciprocal(z2);
-                var z3Inv = Vector256.Create(1 / clipPositions[2].W);
-
                 bool enter;
-                bool exit;
 
                 for (int y = aabb.Y; y < aabb.Y + aabb.Height; y++)
                 {
                     enter = false;
-                    exit = false;
 
                     // Skip scanline outside of frame
                     int leftX = aabb.X;
@@ -275,43 +278,29 @@ namespace SoftRender
 
                     for (int x = leftX; x < aabb.X + aabb.Width; x += 8)
                     {
-                        if (!exit)
+                        var insideMask = context.GetInsideMask(x);
+                        if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
                         {
-                            var insideMask = context.GetInsideMask(x);
+                            enter = true;
 
-                            if (Vector256.GreaterThanAny(insideMask.AsByte(), Zeros.AsByte()))
-                            {
-                                enter = true;
+                            context.GetBarycentricCoordinates(barycentric);
+                            var z = context.InterpolateDepth(barycentric);
 
-                                // Calculate barycentric coordinates
-                                var b1 = context.Function2 / context.AreaTimesTwo;
-                                var b2 = context.Function3 / context.AreaTimesTwo;
-                                var b3 = Ones - b1 - b2;
-
-                                // Interpolate the depth value
-                                var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                                var z = Avx.Reciprocal(zInv);
-
-                                // Update z-Buffer
-                                var zBufferOffset = y * zBufferStride + x;
-                                var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
-                                zBufferValue = Avx.Max(zBufferValue, z);
-                                Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
-                            }
-                            else if (enter)
-                            {
-                                exit = true;
-                            }
-
-                            context.IncrementX();
+                            // Update z-Buffer
+                            var zBufferOffset = y * zBufferStride + x;
+                            var zBufferValue = Vector256.Load(zBuffer + zBufferOffset);
+                            zBufferValue = Avx.Max(zBufferValue, z);
+                            Avx.MaskStore(zBuffer + zBufferOffset, insideMask, zBufferValue);
                         }
-                        else // basically some useless optimization
+                        else if (enter)
                         {
                             var r = aabb.X + aabb.Width - x;
                             var rm = (int)System.Math.Ceiling((float)r / 8);
                             context.IncrementX(rm);
                             break;
                         }
+
+                        context.IncrementX();
                     }
 
                     context.ResetXAndIncrementY();
@@ -319,16 +308,12 @@ namespace SoftRender
             }
         }
 
-        private void FillTriangle(Span<VertexShaderOutput> input, Vector2D[] screenTriangle, PixelShader pixelShader)
+        private void FillTriangle(Span<VertexShaderOutput> input, Vector3D[] screenTriangle, PixelShader pixelShader)
         {
             // Gets axis-aligned bounding box for our triangle (brute force approach)
             Rectangle aabb = GetAABB(screenTriangle);
 
-            var v1 = new PointPacket(screenTriangle[0].X, screenTriangle[0].Y);
-            var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
-            var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
-
-            var context = new RasterizerContextPacket(aabb, viewportSize.Width, v1, v2, v3);
+            var context = new RasterizerContextPacket(aabb, viewportSize.Width, screenTriangle);
 
             // Check for degenerate triangle with zero area
             if (Vector256.EqualsAny(Zeros, context.AreaTimesTwo))
@@ -343,13 +328,6 @@ namespace SoftRender
             tc.a1vs = Vector256.Create(input[1].TexCoords.Y);
             tc.a2us = Vector256.Create(input[2].TexCoords.X);
             tc.a2vs = Vector256.Create(input[2].TexCoords.Y);
-
-            // Get inverse depths
-            var z1 = Vector256.Create(input[0].ClipPosition.W);
-            var z2 = Vector256.Create(input[1].ClipPosition.W);
-            var z1Inv = Avx.Reciprocal(z1);
-            var z2Inv = Avx.Reciprocal(z2);
-            var z3Inv = Vector256.Create(1 / input[2].ClipPosition.W);
 
             bool enter;
 
@@ -378,14 +356,8 @@ namespace SoftRender
                     {
                         enter = true;
 
-                        // Calculate barycentric coordinates
-                        var b1 = context.Function2 / context.AreaTimesTwo;
-                        var b2 = context.Function3 / context.AreaTimesTwo;
-                        var b3 = Ones - b1 - b2;
-
-                        // Interpolate the depth value
-                        var zInv = z1Inv * b1 + z2Inv * b2 + z3Inv * b3;
-                        var z = Avx.Reciprocal(zInv);
+                        context.GetBarycentricCoordinates(barycentric);
+                        var z = context.InterpolateDepth(barycentric);
 
                         // Update z-Buffer
                         var zBufferOffset = y * zBufferStride + x;
@@ -398,8 +370,8 @@ namespace SoftRender
                         insideMask = Avx.And(zBufferMask.AsSingle(), insideMask);
 
                         // Calculate perspective-correct barycentric coordinates
-                        var b1pc = z / z1 * b1;
-                        var b2pc = z / z2 * b2;
+                        var b1pc = z / context.z1 * barycentric.Xs;
+                        var b2pc = z / context.z2 * barycentric.Ys;
                         var b3pc = Avx.Subtract(Ones, b1pc);
                         b3pc = Avx.Subtract(b3pc, b2pc);
 
@@ -437,7 +409,7 @@ namespace SoftRender
             }
         }
 
-        private Rectangle GetAABB(Vector2D[] screenTriangle)
+        private Rectangle GetAABB(Vector3D[] screenTriangle)
         {
             var left = (int)System.Math.Min(System.Math.Min(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
             var right = (int)System.Math.Max(System.Math.Max(screenTriangle[0].X, screenTriangle[1].X), screenTriangle[2].X);
@@ -517,34 +489,24 @@ namespace SoftRender
             }
         }
 
-        private static unsafe string PrintVector(Vector128<float> v)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void MapScreenTriangle(ref Vector4D c1, ref Vector4D c2, ref Vector4D c3)
         {
-            var f = new float[4];
-            fixed (float* p = f)
-            {
-                Sse.Store(p, v);
-            }
+            screenTriangle[0].X = vpt.MapX(c1.X / c1.W);
+            screenTriangle[0].Y = vpt.MapY(c1.Y / c1.W);
+            screenTriangle[0].Z = c1.W;
 
-            return $"{f[3]}, {f[2]}, {f[1]}, {f[0]}";
+            screenTriangle[1].X = vpt.MapX(c2.X / c2.W);
+            screenTriangle[1].Y = vpt.MapY(c2.Y / c2.W);
+            screenTriangle[1].Z = c2.W;
+
+            screenTriangle[2].X = vpt.MapX(c3.X / c3.W);
+            screenTriangle[2].Y = vpt.MapY(c3.Y / c3.W);
+            screenTriangle[2].Z = c3.W;
         }
 
-        private static string PrintMasked(Vector256<float> v, Vector256<float> mask)
-        {
-            var sb = new StringBuilder(20);
-
-            fixed (float* m = new float[8])
-            {
-                Avx.Store(m, mask);
-                for (int i = 0; i < 8; i++)
-                {
-                    if (float.IsNaN(m[i]))
-                    {
-                        sb.Append(v[i]).Append(" | ");
-                    }
-                }
-            }
-
-            return sb.ToString();
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsFrontFace(ref Vector4D c1, ref Vector4D c2, ref Vector4D c3) => true; // TODO
+                                                                                             //(c2.X - c1.X) * (c3.Y - c1.Y) - (c3.X - c1.X) * (c2.Y - c1.Y) < 0; // gpt
     }
 }

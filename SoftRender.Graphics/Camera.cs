@@ -43,20 +43,21 @@ namespace SoftRender
         }
 
         /// <summary>
-        /// Creates a matrix for the frustum projection. The depth is reversed.
+        /// Creates a matrix for the frustum projection. The depth is not normalized.
         /// </summary>
         /// <returns>The projection matrix.</returns>
         public Matrix4D CreateProjectionMatrix()
         {
             var fovRad = FieldOfView / 180 * System.Math.PI;
             var focal = -1 / (float)System.Math.Tan(fovRad * 0.5f);
-            var reverseRange = NearPlane - FarPlane;
+            //var reverseRange = NearPlane - FarPlane;
 
             var m = Matrix4D.CreateZero();
             m.M11 = focal / AspectRatio;
             m.M22 = focal;
-            m.M33 = NearPlane / reverseRange;
-            m.M34 = -(NearPlane * FarPlane) / reverseRange;
+            m.M33 = 1;
+            //m.M33 = NearPlane / reverseRange;
+            //m.M34 = -(NearPlane * FarPlane) / reverseRange;
             m.M43 = 1;
 
             return m;
