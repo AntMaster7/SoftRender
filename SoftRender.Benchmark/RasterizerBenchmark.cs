@@ -11,7 +11,7 @@ namespace SoftRender.Benchmark
         private const int Width = 1024;
 
         private readonly Random rnd = new Random();
-        private readonly FastRasterizer fastRasterizer;
+        private readonly Rasterizer fastRasterizer;
         private readonly SimpleRasterizer slowRasterizer;
         private readonly byte* framebuffer;
 

@@ -158,7 +158,7 @@ namespace SoftRender.App
             {
                 ctx.Clear(0);
 
-                using var rasterizer = new FastRasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
+                using var rasterizer = new Rasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
                 rasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
 
                 renderer = new Renderer(rasterizer);
@@ -186,7 +186,7 @@ namespace SoftRender.App
                 //}
             }
 
-            using var zrasterizer = new FastRasterizer(null, 0,
+            using var zrasterizer = new Rasterizer(null, 0,
                 new Size(zBufferBitmap.Width, zBufferBitmap.Height), new ViewportTransform(zBufferBitmap.Width, zBufferBitmap.Height));
 
             var projection = scene.Camera.CreateProjectionMatrix();

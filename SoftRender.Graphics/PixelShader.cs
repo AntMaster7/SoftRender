@@ -77,7 +77,7 @@ namespace SoftRender.Graphics
                 lightDirs.Zs *= invSqrt;
 
                 var dot = lightDirs.Xs * input.WorldNormals.Xs + lightDirs.Ys * input.WorldNormals.Ys + lightDirs.Zs * input.WorldNormals.Zs;
-                dot = Avx.Max(dot, FastRasterizer.Zeros);
+                dot = Avx.Max(dot, Rasterizer.Zeros);
 
                 rsdirect += rsdiffuse * illum * dot;
                 gsdirect += gsdiffuse * illum * dot;

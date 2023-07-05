@@ -44,7 +44,7 @@ namespace SoftRender.Graphics
                 }
             }
 
-            FastRasterizer fastRasterizer = (FastRasterizer)rasterizer;
+            Rasterizer fastRasterizer = (Rasterizer)rasterizer;
 
             frameTimer.Reset();
             frameTimer.Start();
