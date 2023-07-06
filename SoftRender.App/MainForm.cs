@@ -155,7 +155,7 @@ namespace SoftRender.App
                 ctx.Clear(0);
 
                 using var rasterizer = new Rasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                rasterizer.Mode = RasterizerMode.Fill; // | RasterizerMode.Wireframe;
+                rasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
 
                 renderer = new Renderer(rasterizer);
 

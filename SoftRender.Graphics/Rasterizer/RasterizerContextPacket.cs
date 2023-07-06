@@ -48,7 +48,7 @@ namespace SoftRender.Graphics
             var e2 = v2 - v3;
             var e3 = v3 - v1;
 
-            xRightClip = screenWidth - 8;
+            xRightClip = screenWidth - 10; // TODO
             this.aabb = aabb;
 
             var start = new PointPacket()

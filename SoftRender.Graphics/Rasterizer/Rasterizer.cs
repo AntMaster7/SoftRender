@@ -193,6 +193,8 @@ namespace SoftRender.Graphics
 
                         pixelShader!.Run(pixel, pixelShaderInput);
 
+                        //if (y == 719 && x >= 1271) Debugger.Break();
+
                         var offset = y * frameBufferStride + x * BytesPerPixel;
                         pixel.StoreInterleaved(framebuffer + offset, insideMask);
                     }
@@ -296,6 +298,8 @@ namespace SoftRender.Graphics
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             void DrawPixel(int x, int y, ColorRGB color)
             {
+                if(y >= viewportSize.Height || x >= viewportSize.Width) { return; } // TODO: Brute-force clipping
+
                 var offset = y * frameBufferStride + x * BytesPerPixel;
 
                 *(framebuffer + offset + 0) = color.Blue;
