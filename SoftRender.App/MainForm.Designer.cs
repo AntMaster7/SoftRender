@@ -47,9 +47,9 @@
             // zBufferPictureBox
             // 
             zBufferPictureBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            zBufferPictureBox.Location = new Point(891, 12);
+            zBufferPictureBox.Location = new Point(788, 12);
             zBufferPictureBox.Name = "zBufferPictureBox";
-            zBufferPictureBox.Size = new Size(377, 323);
+            zBufferPictureBox.Size = new Size(480, 270);
             zBufferPictureBox.TabIndex = 1;
             zBufferPictureBox.TabStop = false;
             // 
