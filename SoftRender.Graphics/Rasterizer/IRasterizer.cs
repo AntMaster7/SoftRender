@@ -1,6 +1,4 @@
-﻿using SoftRender.Graphics;
-
-namespace SoftRender
+﻿namespace SoftRender.Graphics
 {
     public interface IRasterizer
     {

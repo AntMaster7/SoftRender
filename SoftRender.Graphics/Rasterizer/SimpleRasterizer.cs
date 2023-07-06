@@ -1,8 +1,7 @@
-﻿using SoftRender.Graphics;
-using SoftRender.SRMath;
+﻿using SoftRender.SRMath;
 using System.Drawing;
 
-namespace SoftRender
+namespace SoftRender.Graphics
 {
     public unsafe class SimpleRasterizer : IRasterizer
     {
@@ -71,9 +70,9 @@ namespace SoftRender
 
             int x, y;
 
-            int i = e1x + (e1y * aabb.Width);
-            int j = e2x + (e2y * aabb.Width);
-            int k = e3x + (e3y * aabb.Width);
+            int i = e1x + e1y * aabb.Width;
+            int j = e2x + e2y * aabb.Width;
+            int k = e3x + e3y * aabb.Width;
 
             var sampler = (TextureSampler)texture;
 

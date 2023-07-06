@@ -1,12 +1,8 @@
 using SoftRender.Graphics;
 using SoftRender.SRMath;
-using System;
 using System.Diagnostics;
 using System.Drawing.Imaging;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SoftRender.App
 {
@@ -55,7 +51,7 @@ namespace SoftRender.App
             var suzanne = MeshLoader.Load("Suzanne.obj");
             suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
             suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
-            // scene.Models.Add(suzanne);
+            scene.Models.Add(suzanne);
 
             var plane = MeshLoader.Load("Plane.obj");
             plane.Texture = LoadTexture("uv_grid_opengl.jpg"); // LoadTexture("white-1x1.jpg");
@@ -123,7 +119,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            // scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step); // * Matrix4D.CreateYaw(step);
+            scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step);
 
             if ((WinNative.GetKeyState(Keys.Down) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
             {
@@ -136,11 +132,11 @@ namespace SoftRender.App
 
             if ((WinNative.GetKeyState(Keys.Left) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
             {
-                scene.Camera.Transform *= Matrix4D.CreateYaw(0.01f);
+                scene.Camera!.Transform *= Matrix4D.CreateYaw(0.01f);
             }
             else if ((WinNative.GetKeyState(Keys.Right) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
             {
-                scene.Camera.Transform *= Matrix4D.CreateYaw(-0.01f);
+                scene.Camera!.Transform *= Matrix4D.CreateYaw(-0.01f);
             }
         }
 
@@ -213,9 +209,9 @@ namespace SoftRender.App
             for (int i = 0; i < zBufferBitmap.Width * zBufferBitmap.Height; i++)
             {
                 var scan0 = (byte*)zBufferBitmapData.Scan0;
-                *(scan0 + i * 3 + 0) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
-                *(scan0 + i * 3 + 1) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
-                *(scan0 + i * 3 + 2) = (byte)(System.Math.Min(zrasterizer.zBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 0) = (byte)(System.Math.Min(zrasterizer.ZBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 1) = (byte)(System.Math.Min(zrasterizer.ZBuffer[i] / 5, 1) * 255);
+                *(scan0 + i * 3 + 2) = (byte)(System.Math.Min(zrasterizer.ZBuffer[i] / 5, 1) * 255);
             }
 
             zBufferBitmap.UnlockBits(zBufferBitmapData);

@@ -1,4 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
+using SoftRender.Graphics.Rasterizer;
 using SoftRender.Math;
 using System.Drawing;
 using System.Runtime.InteropServices;

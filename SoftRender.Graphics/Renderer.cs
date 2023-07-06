@@ -8,7 +8,7 @@ namespace SoftRender.Graphics
         private readonly IRasterizer rasterizer;
         private readonly Stopwatch frameTimer = new Stopwatch();
 
-        public int Iterations { get; set; } = 100;
+        public int Iterations { get; set; } = 1;
 
         public VertexShader? VertexShader { get; set; }
 
