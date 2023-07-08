@@ -298,7 +298,7 @@ namespace SoftRender.Graphics
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             void DrawPixel(int x, int y, ColorRGB color)
             {
-                if(y >= viewportSize.Height || x >= viewportSize.Width) { return; } // TODO: Brute-force clipping
+                if(y >= viewportSize.Height || x >= viewportSize.Width || y < 0 || x < 0) { return; } // TODO: Brute-force clipping
 
                 var offset = y * frameBufferStride + x * BytesPerPixel;
 
