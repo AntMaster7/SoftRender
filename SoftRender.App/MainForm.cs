@@ -8,8 +8,8 @@ namespace SoftRender.App
 {
     public partial class MainForm : Form
     {
-        private const int TargetFrameRate = 60;
-        private const int MaxFrameTime = 200;
+        private const int TargetFrameRate = 4;
+        private const int MaxFrameTime = 600;
 
         private Bitmap bitmap;
         private Bitmap zBufferBitmap;
@@ -51,7 +51,7 @@ namespace SoftRender.App
             var suzanne = MeshLoader.Load("Suzanne.obj");
             suzanne.Texture = LoadTexture("brickwall-512x512.jpg");
             suzanne.Transform = Matrix4D.CreateTranslate(0, 0, -3);
-            scene.Models.Add(suzanne);
+            // scene.Models.Add(suzanne);
 
             var plane = MeshLoader.Load("Plane.obj");
             plane.Texture = LoadTexture("uv_grid_opengl.jpg"); // LoadTexture("white-1x1.jpg");
@@ -119,7 +119,7 @@ namespace SoftRender.App
 
             var step = AngularVelocity * (float)delta.TotalMilliseconds / 1000;
 
-            scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step);
+            // scene.Models[0].Transform = scene.Models[0].Transform * Matrix4D.CreateYaw(step);
 
             if ((WinNative.GetKeyState(Keys.Down) & WinNative.KEY_PRESSED) == WinNative.KEY_PRESSED)
             {
@@ -155,7 +155,7 @@ namespace SoftRender.App
                 ctx.Clear(0);
 
                 using var rasterizer = new Rasterizer(ctx.Scan0, ctx.Stride, new Size(w, h), vpt);
-                rasterizer.Mode = RasterizerMode.Fill | RasterizerMode.Wireframe;
+                rasterizer.Mode = RasterizerMode.Wireframe;
 
                 renderer = new Renderer(rasterizer);
 

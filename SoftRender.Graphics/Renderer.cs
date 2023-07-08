@@ -25,7 +25,8 @@ namespace SoftRender.Graphics
             Debug.Assert(PixelShader != null);
             Debug.Assert(Vertices.Length % 3 == 0);
 
-            Span<VertexShaderOutput> vso = new VertexShaderOutput[Vertices.Length];
+            Span<VertexShaderOutput> vso = new VertexShaderOutput[(int)(Vertices.Length * 1.4f)]; // allocate enough memory for clipping output
+            var vsoCurrentIndex = 0;
 
             // allows for quicker access
             var vertexShader = VertexShader;
@@ -36,11 +37,16 @@ namespace SoftRender.Graphics
             // };
             // Parallel.For(0, 100, opts, (iter) =>
             // Task.Factory.StartNew(() =>
-            for (int i = 0; i < Vertices.Length; i += 3)
+            for (int i = 0; i < 3; i += 3)
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    vso[i + j] = vertexShader.Run(Vertices[i + j], Attributes[i + j]);
+                    vso[vsoCurrentIndex++] = vertexShader.Run(Vertices[i + j], Attributes[i + j], j == 0);
+                }
+
+                if (Clip(vso.Slice(vsoCurrentIndex - 3, 4)))
+                {
+                    vsoCurrentIndex++;
                 }
             }
 
@@ -51,7 +57,7 @@ namespace SoftRender.Graphics
 
             for (int iter = 0; iter < Iterations; iter++)
             {
-                for (int i = 0; i < Vertices.Length; i += 3)
+                for (int i = 0; i < 3; i += 3)
                 {
                     fastRasterizer.Face = i / 3;
                     fastRasterizer.Rasterize(vso.Slice(i, 3), PixelShader);
@@ -61,6 +67,20 @@ namespace SoftRender.Graphics
             frameTimer.Stop();
 
             return frameTimer.Elapsed;
+        }
+
+        // returns true if new vertex has been created
+        private bool Clip(Span<VertexShaderOutput> inputTriangle)
+        {
+            // lateral planes
+            var planeLeft = new Vector4D(1, 0, 0, 1);
+            var planeTop = new Vector4D(0, -1, 0, 1);
+            var planeRight = new Vector4D(-1, 0, 0, 1);
+            var planeBottom = new Vector4D(0,1, 0, 1);
+
+
+
+            return false;
         }
     }
 }
