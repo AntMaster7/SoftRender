@@ -40,13 +40,19 @@ namespace SoftRender.Graphics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RasterizerContextPacket(Rectangle aabb, int screenWidth, Vector3D[] screenTriangle)
         {
-            var v1 = new PointPacket(screenTriangle[0].X, screenTriangle[0].Y);
-            var v2 = new PointPacket(screenTriangle[1].X, screenTriangle[1].Y);
-            var v3 = new PointPacket(screenTriangle[2].X, screenTriangle[2].Y);
+            Vector256<float> v1x = Vector256.Create(screenTriangle[0].X);
+            Vector256<float> v1y = Vector256.Create(screenTriangle[0].Y);
+            Vector256<float> v2x = Vector256.Create(screenTriangle[1].X);
+            Vector256<float> v2y = Vector256.Create(screenTriangle[1].Y);
+            Vector256<float> v3x = Vector256.Create(screenTriangle[2].X);
+            Vector256<float> v3y = Vector256.Create(screenTriangle[2].Y);
 
-            var e1 = v1 - v2;
-            var e2 = v2 - v3;
-            var e3 = v3 - v1;
+            Vector256<float> e1Xs = v1x - v2x;
+            Vector256<float> e1Ys = v1y - v2y;
+            Vector256<float> e2Xs = v2x - v3x;
+            Vector256<float> e2Ys = v2y - v3y;
+            Vector256<float> e3Xs = v3x - v1x;
+            Vector256<float> e3Ys = v3y - v1y;
 
             xRightClip = screenWidth - 10; // TODO
             this.aabb = aabb;
@@ -58,23 +64,23 @@ namespace SoftRender.Graphics
             };
 
             // Edge functions
-            Function1 = e1.Xs * (start.Ys - v1.Ys) - e1.Ys * (start.Xs - v1.Xs);
-            Function2 = e2.Xs * (start.Ys - v2.Ys) - e2.Ys * (start.Xs - v2.Xs);
-            Function3 = e3.Xs * (start.Ys - v3.Ys) - e3.Ys * (start.Xs - v3.Xs);
+            Function1 = e1Xs * (start.Ys - v1y) - e1Ys * (start.Xs - v1x);
+            Function2 = e2Xs * (start.Ys - v2y) - e2Ys * (start.Xs - v2x);
+            Function3 = e3Xs * (start.Ys - v3y) - e3Ys * (start.Xs - v3x);
 
             // Increments for edge functions
             // x ->: initial - u.y
             // y ->: initial + u.x
             // x <-: initial + u.y
             // y <-: initial - u.x
-            e1x = e1.Ys * Eights;
-            e2x = e2.Ys * Eights;
-            e3x = e3.Ys * Eights;
-            e1y = e1.Xs;
-            e2y = e2.Xs;
-            e3y = e3.Xs;
+            e1x = e1Ys * Eights;
+            e2x = e2Ys * Eights;
+            e3x = e3Ys * Eights;
+            e1y = e1Xs;
+            e2y = e2Xs;
+            e3y = e3Xs;
 
-            AreaTimesTwo = -e2.Ys * e1.Xs + e2.Xs * e1.Ys;
+            AreaTimesTwo = Fma.MultiplyAdd(e2Xs, e1Ys, -e2Ys * e1Xs);
 
             // Get inverse depths
             Z1 = Vector256.Create(screenTriangle[0].Z);

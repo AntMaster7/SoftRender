@@ -139,7 +139,8 @@ namespace SoftRender.Graphics
 
         private void FillTriangle(Span<VertexShaderOutput> input, Vector3D[] screenTriangle)
         {
-            Rectangle aabb = GetAABB(screenTriangle);
+            var aabb = GetAABB(screenTriangle);
+
             var context = new RasterizerContextPacket(aabb, viewportSize.Width, screenTriangle);
 
             // Check for degenerate triangle with zero area
@@ -152,6 +153,18 @@ namespace SoftRender.Graphics
             InitializeTextureCoordinates(input);
 
             bool insideTriangle;
+
+            var wn0x = Vector256.Create(input[0].WorldNormal.X);
+            var wn0y = Vector256.Create(input[0].WorldNormal.Y);
+            var wn0z = Vector256.Create(input[0].WorldNormal.Z);
+
+            var wn1x = Vector256.Create(input[1].WorldNormal.X);
+            var wn1y = Vector256.Create(input[1].WorldNormal.Y);
+            var wn1z = Vector256.Create(input[1].WorldNormal.Z);
+
+            var wn2x = Vector256.Create(input[2].WorldNormal.X);
+            var wn2y = Vector256.Create(input[2].WorldNormal.Y);
+            var wn2z = Vector256.Create(input[2].WorldNormal.Z);
 
             for (int y = aabb.Y; y < aabb.Y + aabb.Height; y++)
             {
@@ -178,13 +191,13 @@ namespace SoftRender.Graphics
                         b3pc = Avx.Subtract(b3pc, b2pc);
 
                         // Interpolate texture coordinates
-                        pixelShaderInput.TexCoords.Xs = Avx.And(b1pc * tc.a0us + b2pc * tc.a1us + b3pc * tc.a2us, insideMask);
-                        pixelShaderInput.TexCoords.Ys = Avx.And(b1pc * tc.a0vs + b2pc * tc.a1vs + b3pc * tc.a2vs, insideMask);
+                        pixelShaderInput.TexCoords.Xs = Avx.And(Fma.MultiplyAdd(b3pc, tc.a2us, Fma.MultiplyAdd(b1pc, tc.a0us, b2pc * tc.a1us)), insideMask);
+                        pixelShaderInput.TexCoords.Ys = Avx.And(Fma.MultiplyAdd(b3pc, tc.a2vs, Fma.MultiplyAdd(b1pc, tc.a0vs, b2pc * tc.a1vs)), insideMask);
 
                         // Interpolate normals
-                        pixelShaderInput.WorldNormals.Xs = b1pc * input[0].WorldNormal.X + b2pc * input[1].WorldNormal.X + b3pc * input[2].WorldNormal.X;
-                        pixelShaderInput.WorldNormals.Ys = b1pc * input[0].WorldNormal.Y + b2pc * input[1].WorldNormal.Y + b3pc * input[2].WorldNormal.Y;
-                        pixelShaderInput.WorldNormals.Zs = b1pc * input[0].WorldNormal.Z + b2pc * input[1].WorldNormal.Z + b3pc * input[2].WorldNormal.Z;
+                        pixelShaderInput.WorldNormals.Xs = Fma.MultiplyAdd(b3pc, wn2x, Fma.MultiplyAdd(b1pc, wn0x, b2pc * wn1x));
+                        pixelShaderInput.WorldNormals.Ys = Fma.MultiplyAdd(b3pc, wn2y, Fma.MultiplyAdd(b1pc, wn0y, b2pc * wn1y));
+                        pixelShaderInput.WorldNormals.Zs = Fma.MultiplyAdd(b3pc, wn2z, Fma.MultiplyAdd(b1pc, wn0z, b2pc * wn1z));
 
                         // Interpolate world positions
                         pixelShaderInput.WorldPositions.Xs = b1pc * input[0].WorldPosition.X + b2pc * input[1].WorldPosition.X + b3pc * input[2].WorldPosition.X;
@@ -192,8 +205,6 @@ namespace SoftRender.Graphics
                         pixelShaderInput.WorldPositions.Zs = b1pc * input[0].WorldPosition.Z + b2pc * input[1].WorldPosition.Z + b3pc * input[2].WorldPosition.Z;
 
                         pixelShader!.Run(pixel, pixelShaderInput);
-
-                        //if (y == 719 && x >= 1271) Debugger.Break();
 
                         var offset = y * frameBufferStride + x * BytesPerPixel;
                         pixel.StoreInterleaved(framebuffer + offset, insideMask);

@@ -4,8 +4,7 @@ using System.Runtime.Intrinsics.X86;
 
 namespace SoftRender
 {
-    // being a struct makes a big performance difference
-    public struct PixelPacket
+    public class PixelPacket
     {
         public Vector256<int> Rs;
 
