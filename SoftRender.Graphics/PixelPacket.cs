@@ -4,13 +4,14 @@ using System.Runtime.Intrinsics.X86;
 
 namespace SoftRender
 {
-    public class PixelPacket : PointPacket
+    // being a struct makes a big performance difference
+    public struct PixelPacket
     {
-        public Vector256<int> Rs { get; set; }
+        public Vector256<int> Rs;
 
-        public Vector256<int> Gs { get; set; }
+        public Vector256<int> Gs;
 
-        public Vector256<int> Bs { get; set; }
+        public Vector256<int> Bs;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Vector256<byte> ConvertToVector256Int8WithTruncation(Vector256<int> value)
